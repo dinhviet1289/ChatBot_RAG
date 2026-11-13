@@ -1,0 +1,18 @@
+# CPU-only torch: bắt buộc để không kéo bản CUDA (~2GB) trên Streamlit Cloud free.
+# Dòng +cpu chỉ có trên index CPU của PyTorch -> ép pip chọn bản nhẹ.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+
+# Web
+streamlit>=1.50
+
+# RAG stack (khớp notebook Colab). Nếu build lỗi version, xem README mục "Khoá version".
+langchain
+langchain-classic
+langchain-community
+langchain-core
+langchain-groq
+langchain-huggingface
+faiss-cpu
+rank-bm25
+sentence-transformers
