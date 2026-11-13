@@ -1,7 +1,8 @@
 # CPU-only torch: bắt buộc để không kéo bản CUDA (~2GB) trên Streamlit Cloud free.
 # Dòng +cpu chỉ có trên index CPU của PyTorch -> ép pip chọn bản nhẹ.
+# transformers 5.x đòi torch >= 2.6 -> phải dùng 2.6.0+cpu (không phải 2.5.1).
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.1+cpu
+torch==2.6.0+cpu
 
 # Web
 streamlit>=1.50
@@ -15,4 +16,6 @@ langchain-groq
 langchain-huggingface
 faiss-cpu
 rank-bm25
-sentence-transformers
+# Pin bộ ML tương thích: st 6.3.0 cần transformers>=5,<6; transformers 5.23 cần torch>=2.6.
+sentence-transformers==6.3.0
+transformers==5.23.0
