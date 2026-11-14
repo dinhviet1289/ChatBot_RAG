@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -6,6 +7,8 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
+
+logger = logging.getLogger(__name__)
 
 
 def _secret(key, default=None):
@@ -23,9 +26,13 @@ RETRIEVE_N = int(_secret("RETRIEVE_N", 20))
 TOP_K = int(_secret("RERANK_TOP_K", 5))
 EMBED_MODEL = _secret("EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
-# Cloud free ~1GB RAM -> mặc định TẮT reranker. Bật lại (true) khi chạy Colab/máy mạnh.
-USE_RERANKER = str(_secret("USE_RERANKER", "false")).strip().lower() in ("1", "true", "yes", "on")
-RERANK_MODEL = _secret("RERANK_MODEL", "BAAI/bge-reranker-v2-m3")
+# Rerank: "off" (nhẹ RAM nhất) | "cohere" (gọi API, không tốn RAM cloud) |
+# "local" (CrossEncoder bge-reranker-v2-m3, chỉ cho Colab/máy >2GB RAM).
+RERANK_PROVIDER = str(_secret("RERANK_PROVIDER", "off")).strip().lower()
+_default_rerank_model = ("rerank-multilingual-v3.0" if RERANK_PROVIDER == "cohere"
+                         else "BAAI/bge-reranker-v2-m3")
+RERANK_MODEL = _secret("RERANK_MODEL", _default_rerank_model)
+COHERE_API_KEY = _secret("COHERE_API_KEY")
 
 _groq_key = _secret("GROQ_API_KEY")
 if _groq_key:
@@ -113,6 +120,29 @@ class RerankRetriever:
         return out
 
 
+class CohereReranker:
+    """Rerank qua Cohere API -> không tốn RAM cloud. predict() cùng chữ ký với CrossEncoder.
+    API lỗi (mạng/rate-limit/key) -> giữ thứ tự truy hồi gốc để chatbot vẫn trả lời được."""
+    def __init__(self, api_key, model):
+        import cohere
+        self.client = cohere.ClientV2(api_key=api_key)
+        self.model = model
+
+    def predict(self, pairs):
+        query = pairs[0][0]
+        docs = [text for _, text in pairs]
+        try:
+            resp = self.client.rerank(model=self.model, query=query,
+                                      documents=docs, top_n=len(docs))
+            scores = [0.0] * len(docs)
+            for r in resp.results:
+                scores[r.index] = float(r.relevance_score)
+            return scores
+        except Exception as e:
+            logger.warning("Cohere rerank lỗi, giữ thứ tự truy hồi gốc: %s", e)
+            return [float(len(docs) - i) for i in range(len(docs))]
+
+
 class TopKRetriever:
     """Không reranker: hybrid lấy N ứng viên rồi giữ top-k (nhẹ RAM cho cloud free)."""
     def __init__(self, base, k):
@@ -138,7 +168,12 @@ def get_rag():
     vector_ret = db.as_retriever(search_type="similarity", search_kwargs={"k": RETRIEVE_N})
     ensemble = EnsembleRetriever(retrievers=[bm25, vector_ret], weights=[0.3, 0.7])
 
-    if USE_RERANKER:
+    if RERANK_PROVIDER == "cohere":
+        if not COHERE_API_KEY:
+            raise ValueError("RERANK_PROVIDER=cohere nhưng thiếu COHERE_API_KEY trong Secrets.")
+        reranker = CohereReranker(COHERE_API_KEY, RERANK_MODEL)
+        retriever = RerankRetriever(ensemble, reranker, TOP_K)
+    elif RERANK_PROVIDER == "local":
         from sentence_transformers import CrossEncoder
         reranker = CrossEncoder(RERANK_MODEL, max_length=1024)
         retriever = RerankRetriever(ensemble, reranker, TOP_K)

@@ -19,3 +19,6 @@ rank-bm25
 # Pin bộ ML tương thích: st 6.3.0 cần transformers>=5,<6; transformers 5.23 cần torch>=2.6.
 sentence-transformers==6.3.0
 transformers==5.23.0
+
+# Rerank qua API (RERANK_PROVIDER=cohere) -> không tốn RAM cloud.
+cohere==7.3.1

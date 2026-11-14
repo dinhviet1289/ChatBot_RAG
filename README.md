@@ -6,8 +6,9 @@ từ repo GitHub này — không cần Colab/ngrok.
 - **Web:** `app.py` (Streamlit) + `rag_engine_web.py` (RAG engine).
 - **Retrieval:** hybrid BM25 + FAISS (embedding `paraphrase-multilingual-MiniLM-L12-v2`).
 - **LLM:** Groq `openai/gpt-oss-120b`.
-- **Reranker:** TẮT mặc định trên cloud free (`USE_RERANKER=false`) cho vừa ~1GB RAM.
-  Pipeline đầy đủ (có reranker `bge-reranker-v2-m3`) vẫn giữ trong notebook Colab để eval.
+- **Reranker:** mặc định TẮT (`RERANK_PROVIDER=off`). Trên cloud free nên bật
+  `RERANK_PROVIDER=cohere` — rerank qua API, **không tốn RAM**. Bản local `bge-reranker-v2-m3`
+  (`RERANK_PROVIDER=local`) chỉ cho Colab/máy >2GB RAM; pipeline đầy đủ vẫn giữ trong notebook để eval.
 - **Eval (RAGAS):** chạy trong Colab, KHÔNG nằm trong repo web này.
 
 ---
@@ -56,6 +57,21 @@ Chỉ commit `secrets.toml.example` (file mẫu, không chứa key thật).
 
 Xong — app chạy tại `https://<ten-app>.streamlit.app`, tự chạy lại mỗi khi m push code.
 
+### Bật rerank Cohere (khuyên dùng trên cloud free)
+
+Rerank tăng chất lượng truy hồi mà không tốn RAM (model chạy trên server Cohere):
+
+1. Tạo **Trial API key** miễn phí tại https://dashboard.cohere.com/api-keys.
+2. App settings → **Secrets**, thêm:
+   ```toml
+   RERANK_PROVIDER = "cohere"
+   COHERE_API_KEY = "key_cua_m"
+   ```
+3. Save → app tự chạy lại. Mặc định dùng `rerank-multilingual-v3.0` (hỗ trợ tiếng Việt);
+   muốn đổi thì thêm `RERANK_MODEL = "rerank-v3.5"` (hoặc `rerank-v4.0-fast`).
+
+Nếu Cohere lỗi/rate-limit, app tự fallback về thứ tự truy hồi gốc nên vẫn trả lời được.
+
 ## 4. Chạy thử local (tuỳ chọn)
 
 ```bash
@@ -88,5 +104,5 @@ và đổi `torch==...` thành bản `+cpu` tương ứng nếu có).
 
 Streamlit Cloud free ~1GB RAM. Bản này đã bỏ reranker để nhẹ nhất, nhưng model embedding
 vẫn ~470MB. Nếu app bị **OOM / restart liên tục**:
-- Giữ `USE_RERANKER=false` (đừng bật trên free).
+- Đừng đặt `RERANK_PROVIDER=local` trên free (model reranker ~2GB). Dùng `cohere` (API) hoặc `off`.
 - Cân nhắc nâng cấp gói trả phí, hoặc chạy web trên máy/Colab như cũ.
