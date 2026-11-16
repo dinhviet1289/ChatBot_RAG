@@ -28,7 +28,7 @@ def _secret(key, default=None):
 
 BASE_DIR = Path(__file__).resolve().parent
 INDEX_PATH = _secret("INDEX_PATH", str(BASE_DIR / "data" / "faiss_index_huggingface"))
-LLM_MODEL = _secret("LLM_MODEL", "openai/gpt-oss-120b")
+LLM_MODEL = _secret("LLM_MODEL", "llama-3.3-70b-versatile")
 RETRIEVE_N = int(_secret("RETRIEVE_N", 20))
 TOP_K = int(_secret("RERANK_TOP_K", 5))
 # BM25 bỏ từ khoá xuất hiện trong hơn tỷ lệ này số chunk (xem select_query_terms).

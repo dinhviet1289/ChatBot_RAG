@@ -5,7 +5,7 @@ từ repo GitHub này — không cần Colab/ngrok.
 
 - **Web:** `app.py` (Streamlit) + `rag_engine_web.py` (RAG engine).
 - **Retrieval:** hybrid BM25 + FAISS (embedding `paraphrase-multilingual-MiniLM-L12-v2`).
-- **LLM:** Groq `openai/gpt-oss-120b`.
+- **LLM:** Groq `llama-3.3-70b-versatile` (đổi bằng `LLM_MODEL` trong Secrets — mỗi model có hạn mức riêng).
 - **Reranker:** mặc định TẮT (`RERANK_PROVIDER=off`). Trên cloud free nên bật
   `RERANK_PROVIDER=cohere` — rerank qua API, **không tốn RAM**. Bản local `bge-reranker-v2-m3`
   (`RERANK_PROVIDER=local`) chỉ cho Colab/máy >2GB RAM; pipeline đầy đủ vẫn giữ trong notebook để eval.
