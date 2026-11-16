@@ -107,8 +107,10 @@ def describe_llm_error(exc):
     nhạy cảm, còn người dùng cần biết cách xử lý chứ không cần stack trace.
     """
     if "RateLimit" in type(exc).__name__:
-        return ("Hạn mức gọi mô hình miễn phí đã hết trong vài phút. "
-                "Đợi khoảng một phút rồi bấm **Tạo lại câu trả lời**.")
+        return ("Hạn mức gọi mô hình miễn phí đã chạm trần (~8.000 token/phút hoặc "
+                "~200.000 token/ngày). Đợi khoảng một phút rồi bấm **Tạo lại câu trả lời**; "
+                "nếu vẫn lỗi thì trần theo ngày đã cạn — đổi `LLM_MODEL` sang model khác "
+                "trong Secrets (mỗi model có hạn mức riêng).")
     return f"Không gọi được mô hình trả lời ({type(exc).__name__}). Thử lại sau ít phút."
 
 

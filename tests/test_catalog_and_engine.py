@@ -120,6 +120,8 @@ class TestCatalogAndEngine(unittest.TestCase):
         msg = describe_llm_error(RateLimitError("upstream body with token abc123"))
         self.assertIn("hạn mức", msg.lower())
         self.assertIn("Tạo lại", msg)
+        self.assertIn("ngày", msg)
+        self.assertIn("LLM_MODEL", msg)
         self.assertNotIn("abc123", msg)
 
     def test_describe_llm_error_names_other_failures_without_leaking_body(self):
