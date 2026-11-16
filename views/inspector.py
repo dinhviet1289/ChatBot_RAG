@@ -1,7 +1,8 @@
-"""Hỏi đáp & Kiểm tra truy hồi: lịch sử hội thoại + mổ xẻ 2 tầng truy hồi.
+"""Hỏi đáp & Truy hồi: màn hình hội thoại là chính, số liệu truy hồi trong expander.
 
-Mỗi lượt chạy có sinh LLM được lưu vào cuộc hội thoại đang mở (câu hỏi, câu trả
-lời, nguồn trích dẫn, độ trễ). Chạy chỉ truy hồi (gen=False) không đụng lịch sử.
+Ô chat dưới đáy (Enter để gửi) điều khiển luồng hỏi đáp; mỗi lượt được lưu vào
+cuộc hội thoại đang mở kèm trích dẫn. Chế độ chỉ truy hồi (không gọi LLM) nằm
+trong expander riêng để debug mà không biến màn hình mới thành form truy vấn.
 """
 
 import time
@@ -64,13 +65,23 @@ def _render_retrieval_panel(res):
             st.caption(f"#{item['initial_rank']} {item['doc_title']} · trang {item['trang']}")
 
 
+def _render_debug_probe(bundle):
+    with st.expander(":material/science: Kiểm tra truy hồi (không gọi LLM)"):
+        dq = st.text_input("Câu hỏi kiểm tra", key="dbg_q",
+                           placeholder="Chỉ chạy hybrid retrieve + rerank, không tốn token LLM...")
+        dq = (dq or "").strip()
+        if st.button("Chạy kiểm tra", key="dbg_run") and dq:
+            with st.spinner("Đang truy hồi tài liệu..."):
+                _render_retrieval_panel(inspect_retrieval(bundle, dq))
+
+
 def render_inspector_view(bundle):
     state = st.session_state
     conv = get_active_conversation(state)
 
-    st.markdown("### Hỏi đáp & Kiểm tra truy hồi")
-    st.caption("Câu trả lời kèm nguồn trích dẫn được lưu vào cuộc hội thoại đang mở; "
-               "số liệu bên dưới cho thấy vì sao tài liệu đó được chọn.")
+    st.markdown("### Hỏi đáp & Truy hồi")
+    st.caption("Enter để gửi câu hỏi. Câu trả lời kèm trích dẫn được lưu vào cuộc hội thoại; "
+               "số liệu vì sao tài liệu được chọn nằm trong mục mở rộng dưới mỗi lượt.")
 
     _render_history(conv)
 
@@ -81,34 +92,30 @@ def render_inspector_view(bundle):
                 state["pending_prompt"] = q
                 st.rerun()
 
-    queued = False
-    if state.get("pending_prompt"):
-        st.session_state["insp_q"] = state.pop("pending_prompt")
-        queued = True
+    if not conv["messages"] and not state.get("pending_prompt"):
+        st.caption("Gợi ý để bắt đầu:")
+        pc = st.columns(3)
+        for c, p in zip(pc, PRESET_QUESTIONS):
+            if c.button(p, width="stretch", key=f"preset_{p}"):
+                state["pending_prompt"] = p
+                st.rerun()
 
-    pc = st.columns(3)
-    for c, p in zip(pc, PRESET_QUESTIONS):
-        if c.button(p, width="stretch", key=f"preset_{p}"):
-            st.session_state["insp_q"] = p
-    q = st.text_input("Câu hỏi", key="insp_q",
-                      placeholder="Nhập câu hỏi hoặc chọn một gợi ý...")
-    q = (q or "").strip()
-    gen = st.checkbox("Sinh câu trả lời LLM và lưu vào cuộc hội thoại", value=True)
-    run = st.button(":material/play_arrow: Chạy", type="primary") and q
-    if not q or not (run or queued):
+    _render_debug_probe(bundle)
+
+    prompt = st.chat_input("Nhập câu hỏi của bạn...")
+    if state.get("pending_prompt"):
+        prompt = state.pop("pending_prompt")
+    prompt = (prompt or "").strip()
+    if not prompt:
         return
 
     started = time.perf_counter()
-    if gen:
-        append_user_turn(state, q)
-        with st.chat_message("user", avatar=USER_AVATAR):
-            st.markdown(q)
+    append_user_turn(state, prompt)
+    with st.chat_message("user", avatar=USER_AVATAR):
+        st.markdown(prompt)
 
     with st.spinner("Đang truy hồi tài liệu..."):
-        res = inspect_retrieval(bundle, q)
-    _render_retrieval_panel(res)
-    if not gen:
-        return
+        res = inspect_retrieval(bundle, prompt)
 
     ctx = "\n\n".join(it["snippet"] for it in res["selected"])
     keys = bundle["config"]["groq_keys"]
@@ -118,7 +125,7 @@ def render_inspector_view(bundle):
             answer = st.write_stream(stream_answer(
                 bundle["make_answer_chain"],
                 rotation_pairs(keys, model_chain(bundle["config"]["llm_model"])),
-                {"context": ctx, "question": q},
+                {"context": ctx, "question": prompt},
                 report=lambda model, key, fell_back: served.update(
                     model=model, key=key, fell_back=fell_back)))
             sources = sources_from_inspection(res["selected"]) if should_show_sources(answer) else []
@@ -140,3 +147,5 @@ def render_inspector_view(bundle):
                     state["pending_prompt"] = again
                     st.rerun()
     append_assistant_turn(state, answer, sources, latency_s=time.perf_counter() - started)
+    with st.expander("Chi tiết truy hồi của lượt này"):
+        _render_retrieval_panel(res)

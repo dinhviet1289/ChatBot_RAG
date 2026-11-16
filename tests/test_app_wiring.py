@@ -62,6 +62,15 @@ class TestAppWiring(unittest.TestCase):
         self.assertNotIn('bundle["answer_chain"].stream(', src)
         self.assertNotIn('bundle["answer_chain"].invoke(', src)
 
+    def test_inspector_is_conversation_first_not_a_query_form(self):
+        # Bấm "Cuộc hội thoại mới" phải ra màn hình chat (ô nhập dưới đáy, Enter để
+        # gửi), không phải form truy vấn bắt bấm "Chạy"; số liệu debug nằm trong expander.
+        src = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
+        self.assertIn("st.chat_input", src)
+        self.assertIn("st.expander", src)
+        self.assertNotIn("st.checkbox", src)
+        self.assertNotIn('key="insp_q"', src)
+
     def test_inspector_rotates_keys_and_never_prints_one(self):
         # Hết mọi model của một key thì phải sang key kế; key chỉ hiện dưới dạng
         # số thứ tự, in nguyên văn là lộ secret ra giao diện công khai.
@@ -78,8 +87,8 @@ class TestAppWiring(unittest.TestCase):
         self.assertIn("scrollbar", css)
         self.assertIn("transition", css)
         self.assertIn("focus-visible", css)
-        # Chat input đã bị xoá cùng trang Chat; inspector dùng text_input.
-        self.assertNotIn("stChatInput", css)
+        # Ô chat dưới đáy là input chính của màn hình hội thoại, phải được style.
+        self.assertIn("stChatInput", css)
 
     def test_secrets_example_documents_the_key_array(self):
         text = (ROOT / ".streamlit/secrets.toml.example").read_text(encoding="utf-8")

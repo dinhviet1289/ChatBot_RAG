@@ -173,6 +173,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   transition:border-color var(--speed) var(--ease), box-shadow var(--speed) var(--ease); }
 [data-testid="stTextInput"] input:focus { border-color:var(--primary);
   box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 30%, transparent); }
+[data-testid="stChatInput"] { background:var(--card); border:1px solid var(--border);
+  border-radius:14px;
+  transition:border-color var(--speed) var(--ease), box-shadow var(--speed) var(--ease); }
+[data-testid="stChatInput"]:focus-within { border-color:var(--primary);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent); }
+[data-testid="stChatInput"] textarea, [data-testid="stChatInputTextArea"] { color:var(--ink); }
 [data-testid="stCheckbox"] input { accent-color:var(--primary); }
 [data-testid="stPills"] button { border-radius:999px;
   transition:background var(--speed) var(--ease), color var(--speed) var(--ease),
