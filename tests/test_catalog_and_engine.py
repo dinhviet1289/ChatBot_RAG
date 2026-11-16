@@ -130,6 +130,24 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertIn("ValueError", msg)
         self.assertNotIn("abc123", msg)
 
+    def test_describe_llm_error_turns_model_not_found_into_model_switch(self):
+        # Groq trả 404 khi model bị kéo khỏi free tier (llama-3.3-70b-versatile),
+        # bấm lại không bao giờ khỏi — phải đổi model.
+        from rag_engine_web import describe_llm_error
+
+        class NotFoundError(Exception):
+            pass
+
+        msg = describe_llm_error(NotFoundError("upstream body with token abc123"))
+        self.assertIn("LLM_MODEL", msg)
+        self.assertIn("openai/gpt-oss-20b", msg)
+        self.assertNotIn("abc123", msg)
+
+    def test_default_llm_model_is_still_on_groq_free_tier(self):
+        import rag_engine_web
+        free_models = {"openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"}
+        self.assertIn(rag_engine_web.LLM_MODEL, free_models)
+
     def test_inspect_retrieval_computes_rank_deltas_without_mutating_originals(self):
         d1 = FakeDoc("chunk one", {"doc_id": "elc3008_ch01", "start_index": 0, "page_start": 3, "page_end": 3})
         d2 = FakeDoc("chunk two", {"doc_id": "ttnt_tu_minh_phuong", "start_index": 10, "page_start": 38, "page_end": 39})

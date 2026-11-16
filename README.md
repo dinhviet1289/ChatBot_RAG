@@ -5,7 +5,9 @@ từ repo GitHub này — không cần Colab/ngrok.
 
 - **Web:** `app.py` (Streamlit) + `rag_engine_web.py` (RAG engine).
 - **Retrieval:** hybrid BM25 + FAISS (embedding `paraphrase-multilingual-MiniLM-L12-v2`).
-- **LLM:** Groq `llama-3.3-70b-versatile` (đổi bằng `LLM_MODEL` trong Secrets — mỗi model có hạn mức riêng).
+- **LLM:** Groq `openai/gpt-oss-20b` (đổi bằng `LLM_MODEL` trong Secrets). Key free gọi được
+  `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, `qwen/qwen3.8-27b` — mỗi model một pool hạn mức
+  riêng. Hai model Llama cũ của Groq đã chuyển sang Enterprise → **404 trên key free**.
 - **Reranker:** mặc định TẮT (`RERANK_PROVIDER=off`). Trên cloud free nên bật
   `RERANK_PROVIDER=cohere` — rerank qua API, **không tốn RAM**. Bản local `bge-reranker-v2-m3`
   (`RERANK_PROVIDER=local`) chỉ cho Colab/máy >2GB RAM; pipeline đầy đủ vẫn giữ trong notebook để eval.

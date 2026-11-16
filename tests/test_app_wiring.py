@@ -36,6 +36,15 @@ class TestAppWiring(unittest.TestCase):
         self.assertNotIn("evaluation", src)
         self.assertNotIn("Đánh giá RAG", src)
 
+    def test_docs_only_advertise_groq_models_the_free_key_can_call(self):
+        # 404 "model does not exist or you do not have access": 2 model Llama đã bị
+        # Groq chuyển sang Enterprise, tài liệu gọi được chúng là bẫy cho người chạy local.
+        dead_ids = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        for rel in ["README.md", ".streamlit/secrets.toml.example"]:
+            text = (ROOT / rel).read_text(encoding="utf-8")
+            for model_id in dead_ids:
+                self.assertNotIn(model_id, text, f"{rel} still lists {model_id}")
+
 
 if __name__ == "__main__":
     unittest.main()

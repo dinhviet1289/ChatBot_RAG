@@ -28,7 +28,7 @@ def _secret(key, default=None):
 
 BASE_DIR = Path(__file__).resolve().parent
 INDEX_PATH = _secret("INDEX_PATH", str(BASE_DIR / "data" / "faiss_index_huggingface"))
-LLM_MODEL = _secret("LLM_MODEL", "llama-3.3-70b-versatile")
+LLM_MODEL = _secret("LLM_MODEL", "openai/gpt-oss-20b")
 RETRIEVE_N = int(_secret("RETRIEVE_N", 20))
 TOP_K = int(_secret("RERANK_TOP_K", 5))
 # BM25 bỏ từ khoá xuất hiện trong hơn tỷ lệ này số chunk (xem select_query_terms).
@@ -111,6 +111,10 @@ def describe_llm_error(exc):
                 "~200.000 token/ngày). Đợi khoảng một phút rồi bấm **Tạo lại câu trả lời**; "
                 "nếu vẫn lỗi thì trần theo ngày đã cạn — đổi `LLM_MODEL` sang model khác "
                 "trong Secrets (mỗi model có hạn mức riêng).")
+    if "NotFound" in type(exc).__name__:
+        return ("Groq không cho tài khoản free dùng model này (404). "
+                "Đổi `LLM_MODEL` trong Secrets sang một model còn hạn mức free: "
+                "`openai/gpt-oss-20b` (mặc định), `openai/gpt-oss-120b` hoặc `qwen/qwen3.8-27b`.")
     return f"Không gọi được mô hình trả lời ({type(exc).__name__}). Thử lại sau ít phút."
 
 
