@@ -1,4 +1,5 @@
 import ast
+import re
 import unittest
 from pathlib import Path
 
@@ -44,6 +45,20 @@ class TestAppWiring(unittest.TestCase):
             text = (ROOT / rel).read_text(encoding="utf-8")
             for model_id in dead_ids:
                 self.assertNotIn(model_id, text, f"{rel} still lists {model_id}")
+
+    def test_docs_advertise_the_same_default_model_the_code_uses(self):
+        # Bản deploy không ghi LLM_MODEL trong Secrets, nên default trong code là cấu hình
+        # thật; README/mẫu Secrets nói sai model khiến người dùng sửa nhầm chỗ.
+        import rag_engine_web
+
+        documented = {
+            "README.md": re.search(r"Groq `([^`]+)`", (ROOT / "README.md").read_text(encoding="utf-8")),
+            ".streamlit/secrets.toml.example": re.search(r'LLM_MODEL = "([^"]+)"',
+                                                         (ROOT / ".streamlit/secrets.toml.example").read_text(encoding="utf-8")),
+        }
+        for rel, match in documented.items():
+            self.assertIsNotNone(match, f"{rel} no longer names its default model")
+            self.assertEqual(match.group(1), rag_engine_web.LLM_MODEL, f"{rel} documents a stale default")
 
 
 if __name__ == "__main__":

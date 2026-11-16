@@ -148,6 +148,13 @@ class TestCatalogAndEngine(unittest.TestCase):
         free_models = {"openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"}
         self.assertIn(rag_engine_web.LLM_MODEL, free_models)
 
+    def test_default_llm_model_is_the_one_the_deployed_key_has_room_for(self):
+        # Bản deploy không còn dòng LLM_MODEL trong Secrets -> default trong code là
+        # cấu hình thật. Key Groq đang dùng đã đốt trần ngày (TPD trôi 24h) trên
+        # gpt-oss-120b và gpt-oss-20b, chỉ qwen còn trống.
+        import rag_engine_web
+        self.assertEqual(rag_engine_web.LLM_MODEL, "qwen/qwen3.8-27b")
+
     def test_inspect_retrieval_computes_rank_deltas_without_mutating_originals(self):
         d1 = FakeDoc("chunk one", {"doc_id": "elc3008_ch01", "start_index": 0, "page_start": 3, "page_end": 3})
         d2 = FakeDoc("chunk two", {"doc_id": "ttnt_tu_minh_phuong", "start_index": 10, "page_start": 38, "page_end": 39})
