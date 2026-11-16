@@ -1,19 +1,24 @@
+import copy
 import logging
 import os
+import time
 from pathlib import Path
 
-import streamlit as st
-from langchain_community.vectorstores import FAISS
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_groq import ChatGroq
+# Chỉ import stdlib ở cấp module: mọi thư viện bên thứ ba (streamlit, faiss,
+# langchain_*, cohere, sentence_transformers) được import lazy bên trong hàm
+# để `import rag_engine_web` chạy được cả trong môi trường unit-test tối giản.
 
 logger = logging.getLogger(__name__)
 
 
 def _secret(key, default=None):
-    """Đọc từ Streamlit Secrets (cloud/local), fallback về biến môi trường."""
+    """Đọc từ Streamlit Secrets (cloud/local), fallback về biến môi trường.
+
+    Import streamlit lazy trong try/except: chưa cài Streamlit, chưa khởi tạo
+    runtime, hoặc thiếu key -> không raise, trả về env/default.
+    """
     try:
+        import streamlit as st
         return st.secrets[key]
     except Exception:
         return os.environ.get(key, default)
@@ -115,6 +120,10 @@ class RerankRetriever:
         ranked = sorted(zip(candidates, scores), key=lambda x: float(x[1]), reverse=True)[:self.k]
         out = []
         for d, sc in ranked:
+            # Copy nông Document + metadata để KHÔNG mutate Document dùng chung
+            # trong db.docstore (rerank_score chỉ tồn tại trên bản sao trả về).
+            d = copy.copy(d)
+            d.metadata = dict(d.metadata)
             d.metadata["rerank_score"] = round(float(sc), 4)
             out.append(d)
         return out
@@ -153,7 +162,17 @@ class TopKRetriever:
         return _dedup(self.base.invoke(question))[:self.k]
 
 
-def get_rag():
+def get_rag_bundle():
+    """Nạp toàn bộ pipeline RAG đúng một lần (dùng qua @st.cache_resource ở app.py).
+
+    Trả về {db, ensemble, reranker, retriever, answer_chain, config};
+    reranker = None khi RERANK_PROVIDER = "off". Mọi import bên thứ ba nằm
+    trong hàm để module vẫn import được chỉ với stdlib.
+    """
+    from langchain_community.vectorstores import FAISS
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_core.output_parsers import StrOutputParser
+    from langchain_groq import ChatGroq
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_community.retrievers import BM25Retriever
     from langchain_classic.retrievers import EnsembleRetriever
@@ -168,6 +187,7 @@ def get_rag():
     vector_ret = db.as_retriever(search_type="similarity", search_kwargs={"k": RETRIEVE_N})
     ensemble = EnsembleRetriever(retrievers=[bm25, vector_ret], weights=[0.3, 0.7])
 
+    reranker = None
     if RERANK_PROVIDER == "cohere":
         if not COHERE_API_KEY:
             raise ValueError("RERANK_PROVIDER=cohere nhưng thiếu COHERE_API_KEY trong Secrets.")
@@ -182,4 +202,84 @@ def get_rag():
 
     llm = ChatGroq(model=LLM_MODEL, temperature=0)
     answer_chain = ChatPromptTemplate.from_template(TEMPLATE) | llm | StrOutputParser()
-    return retriever, answer_chain
+
+    config = {
+        "top_k": TOP_K,
+        "retrieve_n": RETRIEVE_N,
+        "rerank_provider": RERANK_PROVIDER,
+        "rerank_model": RERANK_MODEL if RERANK_PROVIDER in ("cohere", "local") else None,
+        "embed_model": EMBED_MODEL,
+        "llm_model": LLM_MODEL,
+        "index_path": str(INDEX_PATH),
+    }
+    return {"db": db, "ensemble": ensemble, "reranker": reranker,
+            "retriever": retriever, "answer_chain": answer_chain, "config": config}
+
+
+def get_rag():
+    """Backward compat: giữ chữ ký cũ (retriever, answer_chain) cho app hiện tại."""
+    bundle = get_rag_bundle()
+    return bundle["retriever"], bundle["answer_chain"]
+
+
+def inspect_retrieval(bundle, question):
+    """Mổ xẻ 2 tầng truy hồi cho Live Pipeline Inspector (trang Đánh giá RAG).
+
+    Hàm thuần: chỉ dùng bundle + ui.catalog + time, không Streamlit/LLM,
+    không mutate Document hay metadata gốc trong docstore. Mỗi candidate/selected
+    gồm {doc_id, doc_title, trang, url, snippet, initial_rank, final_rank,
+    rank_delta, rerank_score}; rank_delta = initial_rank - final_rank (dương =
+    được rerank đẩy lên). selected = top_k sau rerank (hoặc đầu danh sách khi tắt).
+    """
+    from ui.catalog import CATALOG, DRIVE_LINKS, trang_label
+
+    config = bundle.get("config") or {}
+    top_k = int(config.get("top_k", TOP_K))
+    provider = str(config.get("rerank_provider", RERANK_PROVIDER)).strip().lower()
+    reranker = bundle.get("reranker")
+    rerank_enabled = reranker is not None and provider not in ("off", "none", "")
+
+    t0 = time.perf_counter()
+    candidates = _dedup(bundle["ensemble"].invoke(question))
+    retrieve_ms = (time.perf_counter() - t0) * 1000.0
+
+    items = []
+    for rank, doc in enumerate(candidates, 1):
+        meta = getattr(doc, "metadata", None) or {}
+        doc_id = meta.get("doc_id") or "?"
+        known = CATALOG.get(doc_id) or {}
+        items.append({
+            "doc_id": doc_id,
+            "doc_title": meta.get("doc_title") or known.get("title") or doc_id,
+            "trang": trang_label(meta),
+            "url": DRIVE_LINKS.get(doc_id),
+            "snippet": getattr(doc, "page_content", "") or "",
+            "initial_rank": rank,
+            "final_rank": rank,
+            "rank_delta": 0,
+            "rerank_score": None,
+        })
+
+    rerank_ms = 0.0
+    order = list(range(len(candidates)))
+    if rerank_enabled and candidates:
+        t1 = time.perf_counter()
+        scores = [float(s) for s in reranker.predict([(question, d.page_content) for d in candidates])]
+        rerank_ms = (time.perf_counter() - t1) * 1000.0
+        order = sorted(range(len(candidates)), key=lambda i: scores[i], reverse=True)
+        for final_rank, idx in enumerate(order, 1):
+            item = items[idx]
+            item["final_rank"] = final_rank
+            item["rank_delta"] = item["initial_rank"] - final_rank
+            item["rerank_score"] = round(scores[idx], 4)
+
+    selected = [items[i] for i in order[:top_k]]
+    return {
+        "question": question,
+        "retrieve_ms": round(retrieve_ms, 2),
+        "rerank_ms": round(rerank_ms, 2),
+        "rerank_enabled": rerank_enabled,
+        "total_candidates": len(candidates),
+        "candidates": items,
+        "selected": selected,
+    }

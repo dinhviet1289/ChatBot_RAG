@@ -172,7 +172,7 @@ html, body, [data-testid="stApp"] { background:var(--canvas); color:var(--ink);
 [data-testid="stHeader"] { background:transparent; }
 #MainMenu, footer { visibility:hidden; }
 [data-testid="stToolbarActions"] { display:none; }
-[data-testid="stMainBlockContainer"] { max-width:880px; margin:0 auto; padding-top:2.5rem; }
+[data-testid="stMainBlockContainer"] { max-width:1160px; margin:0 auto; padding-top:2rem; }
 h1 { font-weight:700; letter-spacing:-0.02em; color:var(--ink); }
 h2, h3 { color:var(--ink); letter-spacing:-0.01em; }
 [data-testid="stMarkdownContainer"] { color:var(--ink); }

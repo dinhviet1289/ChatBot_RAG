@@ -1,0 +1,1 @@
+"""Streamlit view renderers (thin; logic lives in ui/)."""
