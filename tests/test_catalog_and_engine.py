@@ -30,6 +30,33 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertIn("hình", query)
         self.assertIn("dfs", tokenize_bm25("DFS/BFS"))
 
+    def test_build_doc_freq_counts_documents_not_repetitions(self):
+        from rag_engine_web import build_doc_freq
+        df = build_doc_freq([["peas", "peas", "hình"], ["hình", "mô"]])
+        self.assertEqual(df, {"peas": 1, "hình": 2, "mô": 1})
+
+    def test_select_query_terms_drops_words_that_dilute_the_decisive_keyword(self):
+        from rag_engine_web import build_doc_freq, select_query_terms
+        # 1 chunk chứa "peas"; 9 chunk khác đều nói về "mô hình/thành phần/ví dụ".
+        noise = ["mô", "hình", "thành", "phần", "gồm", "ví", "dụ"]
+        corpus = [noise + ["peas"]] + [list(noise) for _ in range(9)]
+        df = build_doc_freq(corpus)
+        kept = select_query_terms("Mô hình PEAS gồm những thành phần nào? Cho ví dụ.", df, len(corpus))
+        self.assertEqual(kept, ["peas"])
+
+    def test_select_query_terms_falls_back_when_no_term_is_specific(self):
+        from rag_engine_web import build_doc_freq, select_query_terms
+        corpus = [["mô", "hình"] for _ in range(10)]
+        df = build_doc_freq(corpus)
+        self.assertEqual(select_query_terms("mô hình", df, len(corpus)), ["mô", "hình"])
+
+    def test_select_query_terms_keeps_query_order_and_handles_empty_input(self):
+        from rag_engine_web import build_doc_freq, select_query_terms
+        df = build_doc_freq([["dfs"], ["bfs"], ["dfs", "bfs"]])
+        self.assertEqual(select_query_terms("BFS và DFS", df, 100), ["bfs", "dfs"])
+        self.assertEqual(select_query_terms("", df, 3), [])
+        self.assertEqual(select_query_terms("peas", {}, 0), ["peas"])
+
     def test_catalog_covers_all_18_indexed_docs_and_13_links(self):
         self.assertEqual(len(CATALOG), 18)
         self.assertEqual(len(DRIVE_LINKS), 13)

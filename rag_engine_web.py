@@ -31,6 +31,8 @@ INDEX_PATH = _secret("INDEX_PATH", str(BASE_DIR / "data" / "faiss_index_huggingf
 LLM_MODEL = _secret("LLM_MODEL", "openai/gpt-oss-120b")
 RETRIEVE_N = int(_secret("RETRIEVE_N", 20))
 TOP_K = int(_secret("RERANK_TOP_K", 5))
+# BM25 bỏ từ khoá xuất hiện trong hơn tỷ lệ này số chunk (xem select_query_terms).
+BM25_MAX_DF_RATIO = float(_secret("BM25_MAX_DF_RATIO", 0.10))
 EMBED_MODEL = _secret("EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
 # Rerank: "off" (nhẹ RAM nhất) | "cohere" (gọi API, không tốn RAM cloud) |
@@ -109,6 +111,30 @@ def tokenize_bm25(text):
     text = re.sub(r"([a-z])([A-Z]{2,})", r"\1 \2", text)
     return [word for word in re.findall(r"[^\W_]+", text.casefold())
             if word not in _BM25_STOPWORDS]
+
+
+def build_doc_freq(tokens_per_doc):
+    """Đếm số chunk chứa mỗi từ (một từ lặp trong cùng chunk chỉ tính một lần)."""
+    df = {}
+    for tokens in tokens_per_doc:
+        for term in set(tokens):
+            df[term] = df.get(term, 0) + 1
+    return df
+
+
+def select_query_terms(query, doc_freq, total_docs, max_df_ratio=BM25_MAX_DF_RATIO):
+    """Chỉ giữ các từ khoá đặc hiệu khi truy vấn BM25 (không dùng khi index chunk).
+
+    Điểm BM25 là TỔNG idf của các từ khớp, nên vài âm tiết Việt thông dụng
+    ("mô", "hình", "thành", "phần", "ví", "dụ") cộng lại vượt một từ hiếm nhưng
+    quyết định ("peas"): chunk chứa PEAS rớt từ hạng 1 xuống 426 và không vào được
+    danh sách ứng viên, tầng rerank mất cơ hội sửa. Từ xuất hiện trong hơn
+    max_df_ratio số chunk bị bỏ; nếu câu hỏi chỉ toàn từ thông dụng thì giữ nguyên.
+    """
+    tokens = tokenize_bm25(query)
+    limit = max_df_ratio * total_docs
+    specific = [term for term in tokens if doc_freq.get(term, 0) <= limit]
+    return specific or tokens
 
 
 def _dedup(docs):
@@ -196,8 +222,13 @@ def get_rag_bundle():
     db = FAISS.load_local(INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
 
     # Dựng lại BM25 từ docstore đã lưu để web tự chạy, không cần chunk lại
-    bm25 = BM25Retriever.from_documents(list(db.docstore._dict.values()),
-                                        preprocess_func=tokenize_bm25)
+    chunks = list(db.docstore._dict.values())
+    bm25 = BM25Retriever.from_documents(chunks, preprocess_func=tokenize_bm25)
+    # from_documents đã dùng preprocess_func để index; từ lúc truy vấn trở đi nó
+    # chỉ chạy trên câu hỏi -> thay bằng bộ lọc từ khoá đặc hiệu riêng tầng BM25
+    # (tầng vector vẫn nhận nguyên câu hỏi để giữ ngữ nghĩa).
+    doc_freq = build_doc_freq(tokenize_bm25(d.page_content) for d in chunks)
+    bm25.preprocess_func = lambda question: select_query_terms(question, doc_freq, len(chunks))
     bm25.k = RETRIEVE_N
     vector_ret = db.as_retriever(search_type="similarity", search_kwargs={"k": RETRIEVE_N})
     ensemble = EnsembleRetriever(retrievers=[bm25, vector_ret], weights=[0.3, 0.7])
