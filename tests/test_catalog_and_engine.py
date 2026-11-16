@@ -6,6 +6,7 @@ from ui.catalog import (
     DRIVE_LINKS,
     serialize_sources,
     should_show_sources,
+    sources_from_inspection,
     summarize_docstore,
 )
 from rag_engine_web import inspect_retrieval
@@ -110,6 +111,27 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]["snippet"], "một")
         self.assertIsNone(out[0]["rerank_score"])
+
+    def test_sources_from_inspection_projects_citation_keys_and_merges_same_page(self):
+        selected = [
+            {"doc_id": "cs188_ch01_search", "doc_title": "CS188", "trang": "9",
+             "url": DRIVE_LINKS["cs188_ch01_search"], "snippet": "chunk yếu",
+             "rerank_score": 0.2, "initial_rank": 3, "final_rank": 1, "rank_delta": 2},
+            {"doc_id": "cs188_ch01_search", "doc_title": "CS188", "trang": "9",
+             "url": DRIVE_LINKS["cs188_ch01_search"], "snippet": "chunk mạnh",
+             "rerank_score": 0.9, "initial_rank": 1, "final_rank": 2, "rank_delta": -1},
+            {"doc_id": "elc3008_ch02", "doc_title": "Ch2", "trang": "4",
+             "url": None, "snippet": "PEAS", "rerank_score": None,
+             "initial_rank": 2, "final_rank": 3, "rank_delta": -1},
+        ]
+        out = sources_from_inspection(selected)
+        self.assertEqual(len(out), 2)
+        self.assertEqual(out[0]["snippet"], "chunk mạnh")
+        self.assertEqual(out[0]["rerank_score"], 0.9)
+        self.assertEqual(out[1]["doc_id"], "elc3008_ch02")
+        for src in out:
+            self.assertEqual(set(src), {"doc_id", "doc_title", "trang", "url", "snippet", "rerank_score"})
+        self.assertEqual(sources_from_inspection([]), [])
 
     def test_describe_llm_error_turns_rate_limit_into_action(self):
         from rag_engine_web import describe_llm_error

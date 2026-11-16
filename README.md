@@ -11,26 +11,29 @@ từ repo GitHub này — không cần Colab/ngrok.
   Groq đã chuyển sang Enterprise → **404 trên key free**.
 - **Tự đổi model rồi đổi key khi cạn hạn mức:** mỗi câu hỏi đi qua `stream_answer`; cặp
   (model, key) đang dùng lỗi 404/429 thì tự thử 2 model free còn lại, hết cả 3 model mới sang
-  key kế trong `GROQ_API_KEYS`. Chat ghi rõ model nào thực sự trả lời (key chỉ hiện số thứ tự).
+  key kế trong `GROQ_API_KEYS`. Trang Hỏi đáp ghi rõ model nào thực sự trả lời (key chỉ hiện số thứ tự).
   Request bị từ chối vì hạn mức không tốn token nên quét nhiều cặp vẫn rẻ.
 - **Reranker:** mặc định TẮT (`RERANK_PROVIDER=off`). Trên cloud free nên bật
   `RERANK_PROVIDER=cohere` — rerank qua API, **không tốn RAM**. Bản local `bge-reranker-v2-m3`
   (`RERANK_PROVIDER=local`) chỉ cho Colab/máy >2GB RAM; pipeline đầy đủ vẫn giữ trong notebook để eval.
 - **Eval (RAGAS):** chạy trong Colab, KHÔNG nằm trong repo web này.
 
-## Giao diện 3 trang (Figma Indigo)
+## Giao diện 2 trang (Figma Indigo)
 
-`app.py` là shell `layout="wide"` với sidebar trái (brand, nút "Đoạn chat mới",
-3 nút điều hướng, danh sách cuộc trò chuyện, thẻ trạng thái hệ thống gồm
-**Rerank đang bật/tắt**). Ba view tách trong `views/`:
+`app.py` là shell `layout="wide"` với sidebar trái (brand, nút "Cuộc hội thoại mới",
+2 nút điều hướng, danh sách cuộc hội thoại **mới nhất nằm trên cùng**, thẻ trạng thái
+hệ thống gồm **Rerank đang bật/tắt**). Hai view tách trong `views/`:
 
-- `views/chat.py` — Trợ lý Chat: hero + 4 thẻ gợi ý, trả lời streaming,
-  trích dẫn bền vững theo từng lượt, nút "Tạo lại câu trả lời".
-- `views/documents.py` — Kho tài liệu: KPI (số học liệu / chunks / chiều embedding),
-  lọc theo nhóm + tìm kiếm, thẻ từng tài liệu kèm link Drive và "Hỏi thử tài liệu này".
-- `views/inspector.py` — Kiểm tra truy hồi: đo ms retrieve/rerank, Top-K kèm rank-delta,
-  danh sách toàn bộ ứng viên stage-1 và tuỳ chọn sinh câu trả lời LLM để đối chiếu.
+- `views/documents.py` — Kho tài liệu (trang mặc định): KPI (số học liệu / chunks /
+  chiều embedding), lọc theo nhóm + tìm kiếm, thẻ từng tài liệu kèm link Drive và
+  "Hỏi thử tài liệu này" (chuyển thẳng sang trang Hỏi đáp và chạy luôn câu hỏi mẫu).
+- `views/inspector.py` — Hỏi đáp & Truy hồi: lịch sử cuộc hội thoại đang mở, câu hỏi
+  (gợi ý có sẵn hoặc tự nhập), trả lời streaming kèm trích dẫn bền vững và nút
+  "Tạo lại câu trả lời"; bên dưới là số liệu ms retrieve/rerank, Top-K kèm rank-delta
+  và toàn bộ ứng viên stage-1. Mỗi lượt có sinh LLM được lưu vào cuộc hội thoại;
+  lượt chỉ truy hồi (bỏ tick sinh LLM) không đụng lịch sử.
 
+Trang Chat riêng đã bị gỡ — hỏi đáp và debug truy hồi dùng chung một màn hình.
 Logic thuần nằm trong `ui/` (`catalog`, `state`, `theme`) để unit-test
 không cần Streamlit. Renderer HTML escape mọi text và chỉ nhận link `https://`.
 
@@ -81,7 +84,10 @@ Chỉ commit `secrets.toml.example` (file mẫu, không chứa key thật).
    ```
 4. **Deploy**. Lần đầu build vài phút (tải torch CPU + model embedding).
 
-Xong — app chạy tại `https://<ten-app>.streamlit.app`, tự chạy lại mỗi khi m push code.
+Xong — app chạy tại `https://<ten-app>.streamlit.app`. **Lưu ý:** push code chỉ khiến
+Cloud đọc lại `app.py`; các module đã import (`ui/`, `views/`, `rag_engine_web.py`) và
+bundle `@st.cache_resource` vẫn sống trong tiến trình cũ. Sau khi push thay đổi ở các file đó,
+phải **Manage app → Reboot** thì bản mới mới chạy thật.
 
 ### Bật rerank Cohere (khuyên dùng trên cloud free)
 

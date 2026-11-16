@@ -8,7 +8,6 @@ from ui.state import (
     init_state,
 )
 from ui.theme import inject_global_css
-from views.chat import render_chat_view
 from views.documents import render_documents_view
 from views.inspector import render_inspector_view
 
@@ -32,16 +31,15 @@ except Exception as e:
     st.stop()
 
 state = st.session_state
-NAV = [("chat", ":material/chat:", "Trợ lý Chat"),
-       ("documents", ":material/folder_open:", "Kho tài liệu"),
-       ("inspector", ":material/science:", "Kiểm tra truy hồi")]
+NAV = [("documents", ":material/folder_open:", "Kho tài liệu"),
+       ("inspector", ":material/forum:", "Hỏi đáp & Truy hồi")]
 
 with st.sidebar:
     st.markdown("### ELC3008")
     st.caption("Trí tuệ nhân tạo trong kinh doanh · DUE")
-    if st.button(":material/add: Đoạn chat mới", width="stretch", type="primary"):
+    if st.button(":material/add: Cuộc hội thoại mới", width="stretch", type="primary"):
         create_new_conversation(state)
-        state["active_page"] = "chat"
+        state["active_page"] = "inspector"
         st.rerun()
     for key, icon, label in NAV:
         active = state["active_page"] == key
@@ -50,13 +48,13 @@ with st.sidebar:
             state["active_page"] = key
             st.rerun()
     st.divider()
-    st.caption("Cuộc trò chuyện")
+    st.caption("Cuộc hội thoại")
     for conv in state["conversations"]:
         c1, c2 = st.columns([0.85, 0.15])
         with c1:
             if st.button(conv["title"], key=f"conv_{conv['id']}", width="stretch"):
                 state["active_conv_id"] = conv["id"]
-                state["active_page"] = "chat"
+                state["active_page"] = "inspector"
                 st.rerun()
         with c2:
             if st.button(":material/delete:", key=f"del_{conv['id']}"):
@@ -79,9 +77,7 @@ with st.sidebar:
         st.caption(f"Embed {cfg.get('embed_model')}")
 
 page = state["active_page"]
-if page == "documents":
-    render_documents_view(bundle)
-elif page == "inspector":
+if page == "inspector":
     render_inspector_view(bundle)
 else:
-    render_chat_view(bundle)
+    render_documents_view(bundle)

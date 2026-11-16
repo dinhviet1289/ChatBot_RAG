@@ -190,3 +190,20 @@ def serialize_sources(docs):
 
 def _score(src):
     return src["rerank_score"] if src["rerank_score"] is not None else -1.0
+
+
+def sources_from_inspection(selected):
+    """Chiếu các item ``selected`` của inspect_retrieval thành nguồn trích dẫn.
+
+    Cùng quy tắc gộp như serialize_sources: mỗi (doc_id, trang) một nguồn, giữ
+    snippet có điểm rerank cao nhất; bỏ các trường xếp hạng chỉ dùng để debug.
+    """
+    merged = {}
+    for item in selected or []:
+        src = {k: item.get(k) for k in
+               ("doc_id", "doc_title", "trang", "url", "snippet", "rerank_score")}
+        key = (src["doc_id"], src["trang"])
+        best = merged.get(key)
+        if best is None or _score(src) > _score(best):
+            merged[key] = src
+    return list(merged.values())

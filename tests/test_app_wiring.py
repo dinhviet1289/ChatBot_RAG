@@ -14,7 +14,6 @@ class TestAppWiring(unittest.TestCase):
             "ui/catalog.py",
             "ui/theme.py",
             "ui/state.py",
-            "views/chat.py",
             "views/documents.py",
             "views/inspector.py",
         ]
@@ -37,25 +36,50 @@ class TestAppWiring(unittest.TestCase):
         self.assertNotIn("evaluation", src)
         self.assertNotIn("Đánh giá RAG", src)
 
-    def test_chat_view_streams_through_the_model_fallback(self):
-        # Gọi thẳng answer_chain.stream() sẽ bỏ qua bước đổi model khi hết hạn mức,
-        # tức lỗi "hết token" quay lại đúng lúc nhiều người dùng cùng hỏi.
-        src = (ROOT / "views" / "chat.py").read_text(encoding="utf-8")
+    def test_chat_page_is_gone_and_documents_is_the_landing_page(self):
+        self.assertFalse((ROOT / "views" / "chat.py").exists())
+        src = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertNotIn("render_chat_view", src)
+        self.assertNotIn("Trợ lý Chat", src)
+        self.assertNotIn('("chat"', src)
+        self.assertIn('("documents"', src)
+        self.assertIn('("inspector"', src)
+        state_src = (ROOT / "ui" / "state.py").read_text(encoding="utf-8")
+        self.assertIn('setdefault("active_page", "documents")', state_src)
+
+    def test_inspector_streams_through_the_model_fallback_and_persists_turns(self):
+        # Gọi thẳng answer_chain.stream() sẽ bỏ qua bước đổi model/key khi hết hạn mức.
+        # Inspector giờ là mặt trận hỏi đáp chính: phải stream trực tiếp, lưu lượt
+        # hỏi/trả lời vào cuộc hội thoại và render lại lịch sử + trích dẫn.
+        src = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
         self.assertIn("stream_answer", src)
         self.assertIn("model_chain", src)
+        self.assertIn("st.write_stream", src)
+        self.assertIn("append_user_turn", src)
+        self.assertIn("append_assistant_turn", src)
+        self.assertIn("get_active_conversation", src)
+        self.assertIn("render_citation_box_html", src)
         self.assertNotIn('bundle["answer_chain"].stream(', src)
-        insp = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
-        self.assertNotIn('bundle["answer_chain"].invoke(', insp)
-        self.assertIn("stream_answer", insp)
+        self.assertNotIn('bundle["answer_chain"].invoke(', src)
 
-    def test_both_views_rotate_keys_and_never_print_one(self):
+    def test_inspector_rotates_keys_and_never_prints_one(self):
         # Hết mọi model của một key thì phải sang key kế; key chỉ hiện dưới dạng
         # số thứ tự, in nguyên văn là lộ secret ra giao diện công khai.
-        for rel in ["views/chat.py", "views/inspector.py"]:
-            src = (ROOT / rel).read_text(encoding="utf-8")
-            self.assertIn("rotation_pairs", src, f"{rel} does not rotate keys")
-            self.assertIn("groq_keys", src, f"{rel} ignores the configured key list")
-            self.assertNotIn("GROQ_API_KEY", src, f"{rel} reaches for the raw key")
+        src = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
+        self.assertIn("rotation_pairs", src)
+        self.assertIn("groq_keys", src)
+        self.assertNotIn("GROQ_API_KEY", src)
+
+    def test_global_css_has_smooth_motion_and_palette_scrollbars(self):
+        from ui.theme import _global_css
+
+        css = _global_css()
+        self.assertIn("prefers-reduced-motion", css)
+        self.assertIn("scrollbar", css)
+        self.assertIn("transition", css)
+        self.assertIn("focus-visible", css)
+        # Chat input đã bị xoá cùng trang Chat; inspector dùng text_input.
+        self.assertNotIn("stChatInput", css)
 
     def test_secrets_example_documents_the_key_array(self):
         text = (ROOT / ".streamlit/secrets.toml.example").read_text(encoding="utf-8")

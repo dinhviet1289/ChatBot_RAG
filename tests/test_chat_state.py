@@ -58,13 +58,29 @@ class TestChatState(unittest.TestCase):
         first_conv = [c for c in state["conversations"] if c["id"] != other_id][0]
         self.assertEqual(len(first_conv["messages"]), 2)
 
-    def test_ask_about_document_switches_to_chat_with_pending_prompt(self):
+    def test_ask_about_document_switches_to_inspector_with_pending_prompt(self):
         state = {}
         init_state(state)
         state["active_page"] = "documents"
         ask_about_document(state, "udl_ch15_gans", "Giải thích hàm mục tiêu của mạng GAN.")
-        self.assertEqual(state["active_page"], "chat")
+        self.assertEqual(state["active_page"], "inspector")
         self.assertEqual(state["pending_prompt"], "Giải thích hàm mục tiêu của mạng GAN.")
+
+    def test_init_state_lands_on_documents_page(self):
+        state = {}
+        init_state(state)
+        self.assertEqual(state["active_page"], "documents")
+
+    def test_new_conversations_are_listed_newest_first(self):
+        state = {}
+        init_state(state)
+        first_id = state["active_conv_id"]
+        append_user_turn(state, "Câu hỏi đầu tiên")
+        second_id = create_new_conversation(state)
+        third_id = create_new_conversation(state)
+        self.assertEqual([c["id"] for c in state["conversations"]],
+                         [third_id, second_id, first_id])
+        self.assertEqual(state["active_conv_id"], third_id)
 
 
 if __name__ == "__main__":

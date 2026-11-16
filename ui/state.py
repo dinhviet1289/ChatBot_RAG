@@ -2,23 +2,8 @@
 
 import uuid
 
-DEFAULT_TITLE = "Đoạn chat mới"
+DEFAULT_TITLE = "Cuộc hội thoại mới"
 TITLE_MAX = 38
-
-SUGGESTED_CARDS = [
-    {"icon": "school", "title": "Khái niệm nền tảng",
-     "subtitle": "PEAS, tác tử, môi trường",
-     "prompt": "Mô hình PEAS gồm những thành phần nào? Cho ví dụ."},
-    {"icon": "account_tree", "title": "Thuật toán tìm kiếm",
-     "subtitle": "DFS, BFS, A*, UCS",
-     "prompt": "So sánh thuật toán DFS và BFS."},
-    {"icon": "psychology", "title": "Học sâu & LLM",
-     "subtitle": "GAN, VAE, Transformer",
-     "prompt": "LLM là gì? Kiến trúc gồm những thành phần nào?"},
-    {"icon": "casino", "title": "CSP & đối kháng",
-     "subtitle": "N-Queens, Minimax",
-     "prompt": "Giải thích bài toán N-Queens dưới dạng CSP."},
-]
 
 
 def _new_conv():
@@ -31,7 +16,7 @@ def init_state(state):
     ids = [c["id"] for c in state["conversations"]]
     if state.get("active_conv_id") not in ids:
         state["active_conv_id"] = ids[0]
-    state.setdefault("active_page", "chat")
+    state.setdefault("active_page", "documents")
     state.setdefault("pending_prompt", None)
 
 
@@ -47,7 +32,7 @@ def get_active_conversation(state):
 def create_new_conversation(state):
     init_state(state)
     conv = _new_conv()
-    state["conversations"].append(conv)
+    state["conversations"].insert(0, conv)
     state["active_conv_id"] = conv["id"]
     return conv["id"]
 
@@ -93,5 +78,5 @@ def prepare_regenerate(state):
 
 def ask_about_document(state, doc_id, prompt):
     init_state(state)
-    state["active_page"] = "chat"
+    state["active_page"] = "inspector"
     state["pending_prompt"] = prompt
