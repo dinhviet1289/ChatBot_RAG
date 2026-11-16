@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from rag_engine_web import describe_llm_error, format_docs
+from rag_engine_web import describe_llm_error, format_docs, model_chain, stream_answer
 from ui.catalog import serialize_sources, should_show_sources
 from ui.state import (
     SUGGESTED_CARDS,
@@ -71,9 +71,17 @@ def render_chat_view(bundle):
             with st.spinner("Đang tra cứu tài liệu..."):
                 docs = bundle["retriever"].invoke(prompt)
             try:
-                answer = st.write_stream(bundle["answer_chain"].stream(
-                    {"context": format_docs(docs), "question": prompt}))
+                served = {}
+                answer = st.write_stream(stream_answer(
+                    bundle["make_answer_chain"],
+                    model_chain(bundle["config"]["llm_model"]),
+                    {"context": format_docs(docs), "question": prompt},
+                    report=lambda model, fell_back: served.update(model=model, fell_back=fell_back)))
                 sources = serialize_sources(docs) if should_show_sources(answer) else []
+                if served.get("fell_back"):
+                    st.caption(
+                        f":material/swap_horiz: `{bundle['config']['llm_model']}` vừa cạn hạn mức, "
+                        f"câu này trả lời bằng `{served['model']}`.")
             except Exception as exc:
                 answer = describe_llm_error(exc)
                 sources = []

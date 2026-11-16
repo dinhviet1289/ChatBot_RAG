@@ -122,6 +122,9 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertIn("Tạo lại", msg)
         self.assertIn("ngày", msg)
         self.assertIn("LLM_MODEL", msg)
+        # App đã tự chuyển model trước khi báo lỗi, nên không được xui người dùng
+        # đi đổi LLM_MODEL như thể đó là cách duy nhất.
+        self.assertIn("đã tự thử", msg)
         self.assertNotIn("abc123", msg)
 
     def test_describe_llm_error_names_other_failures_without_leaking_body(self):

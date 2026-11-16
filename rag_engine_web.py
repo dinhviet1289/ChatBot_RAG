@@ -31,6 +31,9 @@ INDEX_PATH = _secret("INDEX_PATH", str(BASE_DIR / "data" / "faiss_index_huggingf
 # Key Groq của bản deploy đã đốt trần pool ngày trên gpt-oss-* (TPD trôi theo 24h),
 # qwen là model free còn chỗ; đổi lại qua LLM_MODEL trong Secrets khi cần.
 LLM_MODEL = _secret("LLM_MODEL", "qwen/qwen3.8-27b")
+# Ba model Groq còn mở cho tài khoản free (đo 2026-11-16); mỗi model một pool
+# hạn mức riêng nên model này cạn thì model khác vẫn còn chỗ.
+GROQ_FREE_MODELS = ("qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b")
 RETRIEVE_N = int(_secret("RETRIEVE_N", 20))
 TOP_K = int(_secret("RERANK_TOP_K", 5))
 # BM25 bỏ từ khoá xuất hiện trong hơn tỷ lệ này số chunk (xem select_query_terms).
@@ -110,14 +113,50 @@ def describe_llm_error(exc):
     """
     if "RateLimit" in type(exc).__name__:
         return ("Hạn mức gọi mô hình miễn phí đã chạm trần (~8.000 token/phút hoặc "
-                "~200.000 token/ngày). Đợi khoảng một phút rồi bấm **Tạo lại câu trả lời**; "
-                "nếu vẫn lỗi thì trần theo ngày đã cạn — đổi `LLM_MODEL` sang model khác "
-                "trong Secrets (mỗi model có hạn mức riêng).")
+                "~200.000 token/ngày). App đã tự thử các model free còn lại mà vẫn hết. "
+                "Đợi khoảng một phút rồi bấm **Tạo lại câu trả lời**; nếu vẫn lỗi thì trần "
+                "theo ngày đã cạn sạch ở mọi model — đổi `GROQ_API_KEY` hoặc `LLM_MODEL` "
+                "trong Secrets (mỗi model, mỗi tài khoản có hạn mức riêng).")
     if "NotFound" in type(exc).__name__:
         return ("Groq không cho tài khoản free dùng model này (404). "
                 "Đổi `LLM_MODEL` trong Secrets sang một model còn hạn mức free: "
                 "`qwen/qwen3.8-27b` (mặc định), `openai/gpt-oss-20b` hoặc `openai/gpt-oss-120b`.")
     return f"Không gọi được mô hình trả lời ({type(exc).__name__}). Thử lại sau ít phút."
+
+
+def model_chain(configured):
+    """Thứ tự model nên thử: model đã cấu hình trước, rồi các model free còn lại."""
+    return [configured] + [m for m in GROQ_FREE_MODELS if m != configured]
+
+
+def _model_unusable(exc):
+    name = type(exc).__name__
+    return "RateLimit" in name or "NotFound" in name
+
+
+def stream_answer(make_chain, models, inputs, report=None):
+    """Stream câu trả lời, tự chuyển model khi model trước cạn hạn mức hoặc bị 404.
+
+    Chỉ retry trước khi chữ đầu tiên kịp lên màn hình; đã phun chữ rồi mà lỗi thì
+    ném thẳng, vì gọi lại sẽ nhân đôi câu trả lời người dùng đang đọc dở.
+    """
+    last_error = None
+    for index, model in enumerate(models):
+        started = False
+        try:
+            for chunk in make_chain(model).stream(inputs):
+                if not started:
+                    started = True
+                    if report:
+                        report(model, index > 0)
+                yield chunk
+            return
+        except Exception as exc:
+            if started or not _model_unusable(exc):
+                raise
+            last_error = exc
+    if last_error is not None:
+        raise last_error
 
 
 _BM25_STOPWORDS = frozenset({
@@ -266,8 +305,12 @@ def get_rag_bundle():
     else:
         retriever = TopKRetriever(ensemble, TOP_K)
 
-    llm = ChatGroq(model=LLM_MODEL, temperature=0)
-    answer_chain = ChatPromptTemplate.from_template(TEMPLATE) | llm | StrOutputParser()
+    prompt_template = ChatPromptTemplate.from_template(TEMPLATE)
+
+    def make_answer_chain(model):
+        return prompt_template | ChatGroq(model=model, temperature=0) | StrOutputParser()
+
+    answer_chain = make_answer_chain(LLM_MODEL)
 
     config = {
         "top_k": TOP_K,
@@ -279,7 +322,8 @@ def get_rag_bundle():
         "index_path": str(INDEX_PATH),
     }
     return {"db": db, "ensemble": ensemble, "reranker": reranker,
-            "retriever": retriever, "answer_chain": answer_chain, "config": config}
+            "retriever": retriever, "answer_chain": answer_chain,
+            "make_answer_chain": make_answer_chain, "config": config}
 
 
 def get_rag():

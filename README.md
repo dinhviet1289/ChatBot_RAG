@@ -9,6 +9,9 @@ từ repo GitHub này — không cần Colab/ngrok.
   `qwen/qwen3.8-27b`, `openai/gpt-oss-20b`, `openai/gpt-oss-120b` — mỗi model một pool hạn mức
   riêng (~200K token/ngày, trừ hết sau ~100 câu hỏi, pool trôi theo 24h). Hai model Llama cũ của
   Groq đã chuyển sang Enterprise → **404 trên key free**.
+- **Tự đổi model khi cạn hạn mức:** mỗi câu hỏi đi qua `stream_answer`; model cấu hình lỗi
+  404/429 thì tự thử 2 model free còn lại (chung key, khác pool) và chat ghi rõ model nào
+  thực sự trả lời.
 - **Reranker:** mặc định TẮT (`RERANK_PROVIDER=off`). Trên cloud free nên bật
   `RERANK_PROVIDER=cohere` — rerank qua API, **không tốn RAM**. Bản local `bge-reranker-v2-m3`
   (`RERANK_PROVIDER=local`) chỉ cho Colab/máy >2GB RAM; pipeline đầy đủ vẫn giữ trong notebook để eval.

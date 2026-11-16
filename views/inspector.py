@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from rag_engine_web import describe_llm_error, inspect_retrieval
+from rag_engine_web import describe_llm_error, inspect_retrieval, model_chain, stream_answer
 
 PRESET_QUESTIONS = ["So sánh DFS và BFS", "PEAS là gì?", "GAN khác VAE thế nào?"]
 
@@ -42,6 +42,10 @@ def render_inspector_view(bundle):
         if gen:
             ctx = "\n\n".join(it["snippet"] for it in res["selected"])
             try:
-                st.markdown(bundle["answer_chain"].invoke({"context": ctx, "question": q}))
+                answer = "".join(stream_answer(
+                    bundle["make_answer_chain"],
+                    model_chain(bundle["config"]["llm_model"]),
+                    {"context": ctx, "question": q}))
+                st.markdown(answer)
             except Exception as exc:
                 st.error(describe_llm_error(exc))

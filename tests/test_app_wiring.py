@@ -37,6 +37,17 @@ class TestAppWiring(unittest.TestCase):
         self.assertNotIn("evaluation", src)
         self.assertNotIn("Đánh giá RAG", src)
 
+    def test_chat_view_streams_through_the_model_fallback(self):
+        # Gọi thẳng answer_chain.stream() sẽ bỏ qua bước đổi model khi hết hạn mức,
+        # tức lỗi "hết token" quay lại đúng lúc nhiều người dùng cùng hỏi.
+        src = (ROOT / "views" / "chat.py").read_text(encoding="utf-8")
+        self.assertIn("stream_answer", src)
+        self.assertIn("model_chain", src)
+        self.assertNotIn('bundle["answer_chain"].stream(', src)
+        insp = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
+        self.assertNotIn('bundle["answer_chain"].invoke(', insp)
+        self.assertIn("stream_answer", insp)
+
     def test_docs_only_advertise_groq_models_the_free_key_can_call(self):
         # 404 "model does not exist or you do not have access": 2 model Llama đã bị
         # Groq chuyển sang Enterprise, tài liệu gọi được chúng là bẫy cho người chạy local.
