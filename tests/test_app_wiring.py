@@ -48,6 +48,33 @@ class TestAppWiring(unittest.TestCase):
         self.assertNotIn('bundle["answer_chain"].invoke(', insp)
         self.assertIn("stream_answer", insp)
 
+    def test_both_views_rotate_keys_and_never_print_one(self):
+        # Hết mọi model của một key thì phải sang key kế; key chỉ hiện dưới dạng
+        # số thứ tự, in nguyên văn là lộ secret ra giao diện công khai.
+        for rel in ["views/chat.py", "views/inspector.py"]:
+            src = (ROOT / rel).read_text(encoding="utf-8")
+            self.assertIn("rotation_pairs", src, f"{rel} does not rotate keys")
+            self.assertIn("groq_keys", src, f"{rel} ignores the configured key list")
+            self.assertNotIn("GROQ_API_KEY", src, f"{rel} reaches for the raw key")
+
+    def test_secrets_example_documents_the_key_array(self):
+        text = (ROOT / ".streamlit/secrets.toml.example").read_text(encoding="utf-8")
+        self.assertIn("GROQ_API_KEYS", text)
+
+    def test_answer_factory_accepts_a_key_and_passes_it_to_chatgroq(self):
+        # langchain không cài ở môi trường test nên không gọi thử được; sai chữ ký
+        # ở đây chỉ nổ khi lên cloud (TypeError lúc hỏi câu đầu tiên).
+        import ast
+
+        tree = ast.parse((ROOT / "rag_engine_web.py").read_text(encoding="utf-8"))
+        factory = next(n for n in ast.walk(tree)
+                       if isinstance(n, ast.FunctionDef) and n.name == "make_answer_chain")
+        self.assertEqual([a.arg for a in factory.args.args], ["model", "key"])
+        calls = [n for n in ast.walk(factory)
+                 if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "ChatGroq"]
+        self.assertEqual(len(calls), 1)
+        self.assertIn("api_key", [kw.arg for kw in calls[0].keywords])
+
     def test_docs_only_advertise_groq_models_the_free_key_can_call(self):
         # 404 "model does not exist or you do not have access": 2 model Llama đã bị
         # Groq chuyển sang Enterprise, tài liệu gọi được chúng là bẫy cho người chạy local.

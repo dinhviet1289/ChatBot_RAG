@@ -9,9 +9,10 @@ từ repo GitHub này — không cần Colab/ngrok.
   `qwen/qwen3.8-27b`, `openai/gpt-oss-20b`, `openai/gpt-oss-120b` — mỗi model một pool hạn mức
   riêng (~200K token/ngày, trừ hết sau ~100 câu hỏi, pool trôi theo 24h). Hai model Llama cũ của
   Groq đã chuyển sang Enterprise → **404 trên key free**.
-- **Tự đổi model khi cạn hạn mức:** mỗi câu hỏi đi qua `stream_answer`; model cấu hình lỗi
-  404/429 thì tự thử 2 model free còn lại (chung key, khác pool) và chat ghi rõ model nào
-  thực sự trả lời.
+- **Tự đổi model rồi đổi key khi cạn hạn mức:** mỗi câu hỏi đi qua `stream_answer`; cặp
+  (model, key) đang dùng lỗi 404/429 thì tự thử 2 model free còn lại, hết cả 3 model mới sang
+  key kế trong `GROQ_API_KEYS`. Chat ghi rõ model nào thực sự trả lời (key chỉ hiện số thứ tự).
+  Request bị từ chối vì hạn mức không tốn token nên quét nhiều cặp vẫn rẻ.
 - **Reranker:** mặc định TẮT (`RERANK_PROVIDER=off`). Trên cloud free nên bật
   `RERANK_PROVIDER=cohere` — rerank qua API, **không tốn RAM**. Bản local `bge-reranker-v2-m3`
   (`RERANK_PROVIDER=local`) chỉ cho Colab/máy >2GB RAM; pipeline đầy đủ vẫn giữ trong notebook để eval.
@@ -96,6 +97,23 @@ Rerank tăng chất lượng truy hồi mà không tốn RAM (model chạy trên
    muốn đổi thì thêm `RERANK_MODEL = "rerank-v3.5"` (hoặc `rerank-v4.0-fast`).
 
 Nếu Cohere lỗi/rate-limit, app tự fallback về thứ tự truy hồi gốc nên vẫn trả lời được.
+
+### Thêm nhiều key Groq (tự xoay khi hết hạn mức)
+
+Một key free chỉ được ~200K token/ngày **cho mỗi model** (~100 câu hỏi), và trần 8K token/phút
+nghĩa là chỉ ~4 câu hỏi/phút nếu cả nhóm dùng chung. Thêm key dự phòng vào **Secrets**:
+
+```toml
+GROQ_API_KEY = "key_chinh"
+GROQ_API_KEYS = ["key_chinh", "key_ban_1", "key_ban_2"]
+```
+
+Thứ tự thử: hết 3 model của key chính → key kế → lại 3 model. Sidebar hiện `LLM … · N key`
+để biết Secrets đã nạp đủ. **Lưu ý:** nhiều key tạo trong *cùng một* tài khoản Groq dùng chung
+pool hạn mức — muốn thêm hạn mức thật thì key phải tới từ tài khoản khác.
+
+Sau khi sửa Secrets nhớ **Save changes** rồi **Restart** (Manage app → Restart), nếu không
+app vẫn chạy giá trị cũ.
 
 ## 4. Chạy thử local (tuỳ chọn)
 

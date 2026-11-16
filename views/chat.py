@@ -2,7 +2,13 @@
 
 import streamlit as st
 
-from rag_engine_web import describe_llm_error, format_docs, model_chain, stream_answer
+from rag_engine_web import (
+    describe_llm_error,
+    format_docs,
+    model_chain,
+    rotation_pairs,
+    stream_answer,
+)
 from ui.catalog import serialize_sources, should_show_sources
 from ui.state import (
     SUGGESTED_CARDS,
@@ -72,16 +78,20 @@ def render_chat_view(bundle):
                 docs = bundle["retriever"].invoke(prompt)
             try:
                 served = {}
+                keys = bundle["config"]["groq_keys"]
                 answer = st.write_stream(stream_answer(
                     bundle["make_answer_chain"],
-                    model_chain(bundle["config"]["llm_model"]),
+                    rotation_pairs(keys, model_chain(bundle["config"]["llm_model"])),
                     {"context": format_docs(docs), "question": prompt},
-                    report=lambda model, fell_back: served.update(model=model, fell_back=fell_back)))
+                    report=lambda model, key, fell_back: served.update(
+                        model=model, key=key, fell_back=fell_back)))
                 sources = serialize_sources(docs) if should_show_sources(answer) else []
                 if served.get("fell_back"):
+                    where = (f" · key {keys.index(served['key']) + 1}/{len(keys)}"
+                             if len(keys) > 1 else "")
                     st.caption(
                         f":material/swap_horiz: `{bundle['config']['llm_model']}` vừa cạn hạn mức, "
-                        f"câu này trả lời bằng `{served['model']}`.")
+                        f"câu này trả lời bằng `{served['model']}`{where}.")
             except Exception as exc:
                 answer = describe_llm_error(exc)
                 sources = []

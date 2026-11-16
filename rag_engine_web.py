@@ -52,6 +52,28 @@ _groq_key = _secret("GROQ_API_KEY")
 if _groq_key:
     os.environ["GROQ_API_KEY"] = _groq_key
 
+
+def parse_keys(primary, extra):
+    """Gộp key chính với GROQ_API_KEYS (TOML array hoặc chuỗi ngăn phẩy), bỏ trùng.
+
+    Key chỉ tới từ Secrets/env, không bao giờ nằm trong repo. Trùng thì bỏ vì hai
+    key giống nhau dùng chung một pool hạn mức, thử lại chỉ tốn thời gian.
+    """
+    candidates = [primary]
+    if isinstance(extra, str):
+        candidates += extra.split(",")
+    elif extra:
+        candidates += list(extra)
+    keys = []
+    for raw in candidates:
+        key = (raw or "").strip()
+        if key and key not in keys:
+            keys.append(key)
+    return keys
+
+
+GROQ_KEYS = parse_keys(_groq_key, _secret("GROQ_API_KEYS", []))
+
 TEMPLATE = """
 Bạn là trợ lý học tập môn Trí tuệ nhân tạo.
 
@@ -113,10 +135,11 @@ def describe_llm_error(exc):
     """
     if "RateLimit" in type(exc).__name__:
         return ("Hạn mức gọi mô hình miễn phí đã chạm trần (~8.000 token/phút hoặc "
-                "~200.000 token/ngày). App đã tự thử các model free còn lại mà vẫn hết. "
-                "Đợi khoảng một phút rồi bấm **Tạo lại câu trả lời**; nếu vẫn lỗi thì trần "
-                "theo ngày đã cạn sạch ở mọi model — đổi `GROQ_API_KEY` hoặc `LLM_MODEL` "
-                "trong Secrets (mỗi model, mỗi tài khoản có hạn mức riêng).")
+                "~200.000 token/ngày). App đã tự thử mọi model free và mọi key trong "
+                "Secrets mà vẫn hết. Đợi khoảng một phút rồi bấm **Tạo lại câu trả lời**; "
+                "nếu vẫn lỗi thì trần theo ngày đã cạn sạch — thêm key của tài khoản Groq "
+                "khác vào `GROQ_API_KEYS` trong Secrets (mỗi model, mỗi tài khoản có hạn "
+                "mức riêng).")
     if "NotFound" in type(exc).__name__:
         return ("Groq không cho tài khoản free dùng model này (404). "
                 "Đổi `LLM_MODEL` trong Secrets sang một model còn hạn mức free: "
@@ -129,26 +152,39 @@ def model_chain(configured):
     return [configured] + [m for m in GROQ_FREE_MODELS if m != configured]
 
 
+def rotation_pairs(keys, models):
+    """Các cặp (model, key) nên thử: hết mọi model của key này mới sang key kế.
+
+    Mỗi tài khoản Groq có pool riêng theo model, nên đổi model trước (rẻ nhất),
+    chỉ đổi key khi cả 3 model của key đó đều cạn.
+    """
+    pairs = []
+    for key in parse_keys(None, keys):
+        pairs.extend((model, key) for model in models)
+    return pairs
+
+
 def _model_unusable(exc):
     name = type(exc).__name__
     return "RateLimit" in name or "NotFound" in name
 
 
-def stream_answer(make_chain, models, inputs, report=None):
-    """Stream câu trả lời, tự chuyển model khi model trước cạn hạn mức hoặc bị 404.
+def stream_answer(make_chain, pairs, inputs, report=None):
+    """Stream câu trả lời, tự chuyển model rồi key khi cặp trước cạn hạn mức/404.
 
     Chỉ retry trước khi chữ đầu tiên kịp lên màn hình; đã phun chữ rồi mà lỗi thì
     ném thẳng, vì gọi lại sẽ nhân đôi câu trả lời người dùng đang đọc dở.
+    Request bị từ chối vì hạn mức không tốn token, nên quét nhiều cặp vẫn rẻ.
     """
     last_error = None
-    for index, model in enumerate(models):
+    for index, (model, key) in enumerate(pairs):
         started = False
         try:
-            for chunk in make_chain(model).stream(inputs):
+            for chunk in make_chain(model, key).stream(inputs):
                 if not started:
                     started = True
                     if report:
-                        report(model, index > 0)
+                        report(model, key, index > 0)
                 yield chunk
             return
         except Exception as exc:
@@ -307,10 +343,10 @@ def get_rag_bundle():
 
     prompt_template = ChatPromptTemplate.from_template(TEMPLATE)
 
-    def make_answer_chain(model):
-        return prompt_template | ChatGroq(model=model, temperature=0) | StrOutputParser()
+    def make_answer_chain(model, key):
+        return prompt_template | ChatGroq(model=model, api_key=key, temperature=0) | StrOutputParser()
 
-    answer_chain = make_answer_chain(LLM_MODEL)
+    answer_chain = make_answer_chain(LLM_MODEL, GROQ_KEYS[0] if GROQ_KEYS else None)
 
     config = {
         "top_k": TOP_K,
@@ -319,6 +355,7 @@ def get_rag_bundle():
         "rerank_model": RERANK_MODEL if RERANK_PROVIDER in ("cohere", "local") else None,
         "embed_model": EMBED_MODEL,
         "llm_model": LLM_MODEL,
+        "groq_keys": GROQ_KEYS,
         "index_path": str(INDEX_PATH),
     }
     return {"db": db, "ensemble": ensemble, "reranker": reranker,

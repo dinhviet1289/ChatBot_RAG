@@ -75,7 +75,7 @@ with st.sidebar:
         else:
             st.markdown(f":material/check_circle: Rerank **{provider}** · {cfg.get('rerank_model', '')}")
         st.caption(f"Top-k {cfg.get('top_k')} · retrieve {cfg.get('retrieve_n')}")
-        st.caption(f"LLM {cfg.get('llm_model')}")
+        st.caption(f"LLM {cfg.get('llm_model')} · {len(cfg.get('groq_keys') or [])} key")
         st.caption(f"Embed {cfg.get('embed_model')}")
 
 page = state["active_page"]

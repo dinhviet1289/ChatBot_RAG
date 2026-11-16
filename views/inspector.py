@@ -2,7 +2,13 @@
 
 import streamlit as st
 
-from rag_engine_web import describe_llm_error, inspect_retrieval, model_chain, stream_answer
+from rag_engine_web import (
+    describe_llm_error,
+    inspect_retrieval,
+    model_chain,
+    rotation_pairs,
+    stream_answer,
+)
 
 PRESET_QUESTIONS = ["So sánh DFS và BFS", "PEAS là gì?", "GAN khác VAE thế nào?"]
 
@@ -41,11 +47,16 @@ def render_inspector_view(bundle):
                 st.caption(f"#{item['initial_rank']} {item['doc_title']} · trang {item['trang']}")
         if gen:
             ctx = "\n\n".join(it["snippet"] for it in res["selected"])
+            keys = bundle["config"]["groq_keys"]
+            served = {}
             try:
                 answer = "".join(stream_answer(
                     bundle["make_answer_chain"],
-                    model_chain(bundle["config"]["llm_model"]),
-                    {"context": ctx, "question": q}))
+                    rotation_pairs(keys, model_chain(bundle["config"]["llm_model"])),
+                    {"context": ctx, "question": q},
+                    report=lambda model, key, fell_back: served.update(model=model, key=key)))
+                if served:
+                    st.caption(f"LLM `{served['model']}` · key {keys.index(served['key']) + 1}/{len(keys)}")
                 st.markdown(answer)
             except Exception as exc:
                 st.error(describe_llm_error(exc))

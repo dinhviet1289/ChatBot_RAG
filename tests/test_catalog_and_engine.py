@@ -121,9 +121,9 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertIn("hạn mức", msg.lower())
         self.assertIn("Tạo lại", msg)
         self.assertIn("ngày", msg)
-        self.assertIn("LLM_MODEL", msg)
-        # App đã tự chuyển model trước khi báo lỗi, nên không được xui người dùng
-        # đi đổi LLM_MODEL như thể đó là cách duy nhất.
+        self.assertIn("GROQ_API_KEYS", msg)
+        # App đã tự thử mọi model VÀ mọi key trước khi báo lỗi, nên cách xử lý còn
+        # lại là thêm key của tài khoản khác, không phải đi đổi LLM_MODEL.
         self.assertIn("đã tự thử", msg)
         self.assertNotIn("abc123", msg)
 
