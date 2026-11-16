@@ -71,6 +71,24 @@ class TestAppWiring(unittest.TestCase):
         self.assertNotIn("st.checkbox", src)
         self.assertNotIn('key="insp_q"', src)
 
+    def test_retrieval_probe_is_opt_in_mode_not_on_the_default_screen(self):
+        # Màn hình hội thoại mới không được phơi khung debug ra giữa trang;
+        # chế độ kiểm tra truy hồi chỉ hiện khi bật công tắc insp_debug.
+        src = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
+        self.assertIn("st.toggle", src)
+        self.assertIn("insp_debug", src)
+        app_src = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertIn('"Hỏi đáp")', app_src)
+
+    def test_messages_and_expanders_have_entrance_motion(self):
+        from ui.theme import _global_css
+
+        css = _global_css()
+        self.assertIn("@keyframes rag-rise", css)
+        self.assertIn("animation:rag-rise", css)
+        self.assertIn('[data-testid="stChatMessage"] { animation', css)
+        self.assertIn('[data-testid="stExpander"]', css)
+
     def test_inspector_rotates_keys_and_never_prints_one(self):
         # Hết mọi model của một key thì phải sang key kế; key chỉ hiện dưới dạng
         # số thứ tự, in nguyên văn là lộ secret ra giao diện công khai.

@@ -125,6 +125,9 @@ a, a:visited { color:var(--link); text-underline-offset:3px;
   transition:color var(--speed) var(--ease); }
 a:hover { color:var(--ink); }
 ::selection { background:var(--primary); color:#fff; }
+@keyframes rag-rise { from { opacity:0; transform:translateY(10px); }
+  to { opacity:1; transform:translateY(0); } }
+@keyframes rag-fade { from { opacity:0; } to { opacity:1; } }
 * { scrollbar-width:thin; scrollbar-color:var(--border) var(--sidebar); }
 ::-webkit-scrollbar { width:10px; height:10px; }
 ::-webkit-scrollbar-track { background:var(--sidebar); }
@@ -142,7 +145,8 @@ a:hover { color:var(--ink); }
     background var(--speed) var(--ease); }
 [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {
   border-color:var(--link); color:var(--link); background:var(--card); }
-[data-testid="stChatMessage"] { background:var(--card); border:1px solid var(--border);
+[data-testid="stChatMessage"] { animation:rag-rise 280ms var(--ease) backwards;
+  background:var(--card); border:1px solid var(--border);
   border-radius:14px; padding:1rem 1.25rem; box-shadow:0 1px 2px rgba(15,23,42,0.04); }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
   background:var(--active-pill); border-color:var(--border); }
@@ -158,11 +162,13 @@ a:hover { color:var(--ink); }
     transform var(--speed) var(--ease), box-shadow var(--speed) var(--ease); }
 [data-testid="stBaseButton-secondary"]:hover { border-color:var(--link); color:var(--link); }
 [data-testid="stBaseButton-primary"] {
-  background:linear-gradient(135deg,var(--primary),var(--primary-end));
+  background:linear-gradient(135deg,var(--primary),var(--primary-end),var(--primary));
+  background-size:200% 200%; background-position:0% 50%;
   border:none; color:#fff; border-radius:10px; font-weight:600;
   transition:transform var(--speed) var(--ease), box-shadow var(--speed) var(--ease),
-    filter var(--speed) var(--ease); }
+    filter var(--speed) var(--ease), background-position 400ms var(--ease); }
 [data-testid="stBaseButton-primary"]:hover { transform:translateY(-1px); filter:brightness(1.06);
+  background-position:100% 50%;
   box-shadow:0 6px 18px color-mix(in srgb, var(--primary) 45%, transparent); }
 [data-testid="stBaseButton-primary"]:active,
 [data-testid="stBaseButton-secondary"]:active { transform:translateY(0) scale(0.98); }
@@ -180,6 +186,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent); }
 [data-testid="stChatInput"] textarea, [data-testid="stChatInputTextArea"] { color:var(--ink); }
 [data-testid="stCheckbox"] input { accent-color:var(--primary); }
+[data-testid="stToggle"] input { accent-color:var(--primary); }
+[data-testid="stSpinner"] { color:var(--link); }
+[data-testid="stMetric"] { animation:rag-rise 240ms var(--ease) backwards; }
 [data-testid="stPills"] button { border-radius:999px;
   transition:background var(--speed) var(--ease), color var(--speed) var(--ease),
     border-color var(--speed) var(--ease); }
@@ -194,6 +203,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   background:var(--card); }
 [data-testid="stExpander"] summary { transition:color var(--speed) var(--ease); }
 [data-testid="stExpander"] summary:hover { color:var(--link); }
+[data-testid="stExpander"] [data-testid="stVerticalBlock"],
+[data-testid="stExpanderDetails"] [data-testid="stVerticalBlock"] {
+  animation:rag-fade 220ms var(--ease) backwards; }
+.rag-citation { animation:rag-rise 240ms var(--ease) backwards; }
 [data-testid="stDivider"] hr { border-color:var(--border); }
 .rag-cite-item { padding:6px 0; border-bottom:1px dashed var(--border); font-size:0.9rem; }
 .rag-cite-item:last-child { border-bottom:none; }

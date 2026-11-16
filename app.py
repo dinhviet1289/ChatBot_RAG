@@ -32,7 +32,7 @@ except Exception as e:
 
 state = st.session_state
 NAV = [("documents", ":material/folder_open:", "Kho tài liệu"),
-       ("inspector", ":material/forum:", "Hỏi đáp & Truy hồi")]
+       ("inspector", ":material/forum:", "Hỏi đáp")]
 
 with st.sidebar:
     st.markdown("### ELC3008")

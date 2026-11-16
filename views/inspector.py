@@ -1,8 +1,9 @@
-"""Hỏi đáp & Truy hồi: màn hình hội thoại là chính, số liệu truy hồi trong expander.
+"""Hỏi đáp: màn hình hội thoại thuần; chế độ kiểm tra truy hồi là công tắc riêng.
 
 Ô chat dưới đáy (Enter để gửi) điều khiển luồng hỏi đáp; mỗi lượt được lưu vào
-cuộc hội thoại đang mở kèm trích dẫn. Chế độ chỉ truy hồi (không gọi LLM) nằm
-trong expander riêng để debug mà không biến màn hình mới thành form truy vấn.
+cuộc hội thoại đang mở kèm trích dẫn và expander số liệu truy hồi. Khung debug
+chỉ hiện khi bật công tắc "Kiểm tra truy hồi" ở đầu trang, nên cuộc hội thoại
+mới không bao giờ mở ra bằng một form truy vấn.
 """
 
 import time
@@ -66,9 +67,10 @@ def _render_retrieval_panel(res):
 
 
 def _render_debug_probe(bundle):
-    with st.expander(":material/science: Kiểm tra truy hồi (không gọi LLM)"):
+    with st.container(border=True):
+        st.caption(":material/science: Chế độ kiểm tra truy hồi — chỉ chạy hybrid retrieve + rerank, không gọi LLM.")
         dq = st.text_input("Câu hỏi kiểm tra", key="dbg_q",
-                           placeholder="Chỉ chạy hybrid retrieve + rerank, không tốn token LLM...")
+                           placeholder="Nhập câu hỏi để xem tầng truy hồi chọn tài liệu nào...")
         dq = (dq or "").strip()
         if st.button("Chạy kiểm tra", key="dbg_run") and dq:
             with st.spinner("Đang truy hồi tài liệu..."):
@@ -79,9 +81,16 @@ def render_inspector_view(bundle):
     state = st.session_state
     conv = get_active_conversation(state)
 
-    st.markdown("### Hỏi đáp & Truy hồi")
-    st.caption("Enter để gửi câu hỏi. Câu trả lời kèm trích dẫn được lưu vào cuộc hội thoại; "
-               "số liệu vì sao tài liệu được chọn nằm trong mục mở rộng dưới mỗi lượt.")
+    head, mode = st.columns([0.72, 0.28])
+    with head:
+        st.markdown("### Hỏi đáp")
+        st.caption("Enter để gửi câu hỏi. Câu trả lời kèm trích dẫn được lưu vào cuộc hội thoại; "
+                   "số liệu vì sao tài liệu được chọn nằm trong mục mở rộng dưới mỗi lượt.")
+    with mode:
+        st.toggle(":material/science: Kiểm tra truy hồi", key="insp_debug",
+                  help="Bật để mở khung debug retrieve/rerank không tốn token LLM.")
+    if state.get("insp_debug"):
+        _render_debug_probe(bundle)
 
     _render_history(conv)
 
@@ -99,8 +108,6 @@ def render_inspector_view(bundle):
             if c.button(p, width="stretch", key=f"preset_{p}"):
                 state["pending_prompt"] = p
                 st.rerun()
-
-    _render_debug_probe(bundle)
 
     prompt = st.chat_input("Nhập câu hỏi của bạn...")
     if state.get("pending_prompt"):

@@ -27,12 +27,12 @@ hệ thống gồm **Rerank đang bật/tắt**). Hai view tách trong `views/`:
 - `views/documents.py` — Kho tài liệu (trang mặc định): KPI (số học liệu / chunks /
   chiều embedding), lọc theo nhóm + tìm kiếm, thẻ từng tài liệu kèm link Drive và
   "Hỏi thử tài liệu này" (chuyển thẳng sang trang Hỏi đáp và chạy luôn câu hỏi mẫu).
-- `views/inspector.py` — Hỏi đáp & Truy hồi: màn hình hội thoại là chính (ô chat dưới
-  đáy, Enter để gửi), lịch sử cuộc hội thoại đang mở + gợi ý khi trống, trả lời
-  streaming kèm trích dẫn bền vững và nút "Tạo lại câu trả lời". Số liệu ms
-  retrieve/rerank, Top-K kèm rank-delta và ứng viên stage-1 nằm trong expander dưới
-  mỗi lượt; expander "Kiểm tra truy hồi (không gọi LLM)" chạy debug riêng, không
-  đụng lịch sử.
+- `views/inspector.py` — Hỏi đáp: màn hình hội thoại thuần (ô chat dưới đáy, Enter để
+  gửi), lịch sử cuộc hội thoại đang mở + gợi ý khi trống, trả lời streaming kèm trích
+  dẫn bền vững và nút "Tạo lại câu trả lời"; expander số liệu ms retrieve/rerank,
+  Top-K kèm rank-delta và ứng viên stage-1 nằm dưới mỗi lượt. Công tắc
+  "Kiểm tra truy hồi" ở đầu trang mở khung debug retrieve/rerank không gọi LLM —
+  mặc định tắt nên cuộc hội thoại mới không phơi form truy vấn ra màn hình.
 
 Trang Chat riêng đã bị gỡ — hỏi đáp và debug truy hồi dùng chung một màn hình.
 Logic thuần nằm trong `ui/` (`catalog`, `state`, `theme`) để unit-test
