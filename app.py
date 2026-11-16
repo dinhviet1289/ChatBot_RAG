@@ -1,5 +1,6 @@
 import streamlit as st
 from rag_engine_web import get_rag, format_docs
+from ui.theme import inject_global_css
 
 DRIVE_LINKS = {
     "elc3008_ch01": "https://drive.google.com/file/d/1OuFuDhWsIcK4IsV9o7mW02uQfX1AO3fz/view",
@@ -21,34 +22,7 @@ DRIVE_LINKS = {
 st.set_page_config(page_title="ELC3008 | Trợ lý học tập AI",
                    page_icon=":material/school:", layout="centered")
 
-st.markdown("""
-<style>
-  :root { color-scheme: light;
-    --paper:#f7f6f3; --surface:#ffffff; --ink:#1c1917; --muted:#57534e;
-    --border:#e7e5e4; --accent:#0f766e; --tint:#f0fdfa; --radius:10px; }
-  html, body, [data-testid="stApp"] { background:var(--paper); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; }
-  [data-testid="stHeader"] { background:transparent; }
-  #MainMenu, footer { visibility:hidden; }
-  [data-testid="stToolbar"] { display:none; }
-  [data-testid="stMainBlockContainer"] { max-width:880px; margin:0 auto; padding-top:2.5rem; }
-  h1 { font-weight:700; letter-spacing:-0.02em; color:var(--ink); }
-  [data-testid="stMarkdownContainer"] { color:var(--ink); }
-  [data-testid="stCaptionContainer"] { color:var(--muted); }
-  a, a:visited { color:var(--accent); }
-  [data-testid="stSidebar"] { background:var(--surface); border-right:1px solid var(--border); }
-  [data-testid="stSidebar"] * { color:var(--ink); }
-  [data-testid="stSidebar"] [data-testid="stCaptionContainer"] { color:var(--muted); }
-  [data-testid="stChatMessage"] { background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--radius); padding:1rem 1.25rem; box-shadow:none; }
-  [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) { background:var(--tint); border-color:#99f6e4; }
-  [data-testid="stVerticalBlockBorderWrapper"] { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); }
-  [data-testid="stBaseButton-secondary"] { background:var(--surface); color:var(--ink); border:1px solid var(--border); border-radius:8px; }
-  [data-testid="stBaseButton-primary"] { background:var(--accent); border-color:var(--accent); color:#fff; }
-  [data-testid="stChatInput"] { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); }
-  [data-testid="stChatInput"] textarea, [data-testid="stChatInputTextArea"] { color:var(--ink); }
-</style>
-""", unsafe_allow_html=True)
+inject_global_css()
 
 SAMPLE = ["LLM là gì? Kiến trúc gồm những thành phần nào?",
           "Mô hình PEAS gồm những thành phần nào? Cho ví dụ.",
