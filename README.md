@@ -21,26 +21,14 @@ từ repo GitHub này — không cần Colab/ngrok.
   trích dẫn bền vững theo từng lượt, nút "Tạo lại câu trả lời".
 - `views/documents.py` — Kho tài liệu: KPI (số học liệu / chunks / chiều embedding),
   lọc theo nhóm + tìm kiếm, thẻ từng tài liệu kèm link Drive và "Hỏi thử tài liệu này".
-- `views/evaluation.py` — Đánh giá RAG: tab Quality Gate & RAGAS (nạp kết quả Colab,
-  badge PASS/FAIL, chart pastel, breakdown từng câu) và tab Live Pipeline Inspector
-  (đo ms retrieve/rerank, rank-delta Top-K).
+- `views/inspector.py` — Kiểm tra truy hồi: đo ms retrieve/rerank, Top-K kèm rank-delta,
+  danh sách toàn bộ ứng viên stage-1 và tuỳ chọn sinh câu trả lời LLM để đối chiếu.
 
-Logic thuần nằm trong `ui/` (`catalog`, `eval_schema`, `state`, `theme`) để unit-test
+Logic thuần nằm trong `ui/` (`catalog`, `state`, `theme`) để unit-test
 không cần Streamlit. Renderer HTML escape mọi text và chỉ nhận link `https://`.
 
-## Eval Colab → web (1 bước)
-
-Sau khi `eval_rag.py` trong Colab sinh `eval_report.json` / `eval_runs.jsonl`:
-
-```python
-from scripts.export_eval_to_web import build_web_eval_payload
-payload = build_web_eval_payload(report["metrics"], runs, baseline_metrics=baseline["metrics"])
-json.dump(payload, open("eval_results.json", "w"), ensure_ascii=False, indent=2)
-```
-
-Tải `eval_results.json` về, nạp vào tab **Đánh giá RAG** bằng file uploader.
-File seed `data/eval_results.json` luôn gắn `is_sample: true` và hiện banner cảnh báo
-cho tới khi được thay bằng kết quả thật.
+> Đánh giá định lượng (Quality Gate + RAGAS) nằm trong Colab, không ở web app — xem
+> `eval_rag.py` trong notebook.
 
 ---
 

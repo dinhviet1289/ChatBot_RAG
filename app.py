@@ -10,7 +10,7 @@ from ui.state import (
 from ui.theme import inject_global_css
 from views.chat import render_chat_view
 from views.documents import render_documents_view
-from views.evaluation import render_evaluation_view
+from views.inspector import render_inspector_view
 
 st.set_page_config(page_title="ELC3008 | Trợ lý học tập AI",
                    page_icon=":material/school:", layout="wide")
@@ -34,7 +34,7 @@ except Exception as e:
 state = st.session_state
 NAV = [("chat", ":material/chat:", "Trợ lý Chat"),
        ("documents", ":material/folder_open:", "Kho tài liệu"),
-       ("evaluation", ":material/monitoring:", "Đánh giá RAG")]
+       ("inspector", ":material/science:", "Kiểm tra truy hồi")]
 
 with st.sidebar:
     st.markdown("### ELC3008")
@@ -81,7 +81,7 @@ with st.sidebar:
 page = state["active_page"]
 if page == "documents":
     render_documents_view(bundle)
-elif page == "evaluation":
-    render_evaluation_view(bundle)
+elif page == "inspector":
+    render_inspector_view(bundle)
 else:
     render_chat_view(bundle)

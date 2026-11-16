@@ -1,7 +1,7 @@
 """Figma Indigo design system + safe HTML renderers for the ELC3008 RAG chatbot.
 
-Pure functions (clean_snippet, render_citation_box_html, render_pastel_bar_chart_html)
-are unit-testable without a Streamlit runtime. inject_global_css() imports streamlit
+Pure functions (clean_snippet, render_citation_box_html) are unit-testable
+without a Streamlit runtime. inject_global_css() imports streamlit
 lazily so importing this module never requires Streamlit to be installed.
 """
 
@@ -23,8 +23,6 @@ PALETTE = {
     "border": "#4A566E",
     "link": "#B4BFFE",
 }
-
-PASTELS = ["#4FD1C5", "#F6AD55", "#63B3ED", "#9F7AEA", "#FC8181", "#68D391"]
 
 _PAGE_COMMENT = re.compile(r"<!--\s*page:\s*\d+\s*-->")
 _WHITESPACE = re.compile(r"\s+")
@@ -98,71 +96,6 @@ def render_citation_box_html(sources):
         f'NGUỒN TRÍCH DẪN ({len(sources)})</div>'
         f'<ol class="rag-cite-list" style="list-style:none;margin:0;padding:0;">'
         f'{"".join(items)}</ol></div>'
-    )
-
-
-def _metric_pct(val):
-    if isinstance(val, bool):
-        return None
-    if isinstance(val, (int, float)) and math.isfinite(val):
-        return float(val) * 100.0
-    return None
-
-
-def render_pastel_bar_chart_html(runs, thresholds=None, metric_keys=None):
-    """Pastel pill-topped columns comparing one or more eval runs per metric.
-    NaN/None/non-numeric metrics render `N/A` with a 0% bar instead of raising."""
-    if not runs:
-        return ""
-    run_ids = list(runs.keys())
-    if metric_keys is None:
-        metric_keys = []
-        for rid in run_ids:
-            for k in (runs[rid].get("metrics") or {}):
-                if k not in metric_keys:
-                    metric_keys.append(k)
-    thresholds = thresholds or {}
-    groups = []
-    for metric in metric_keys:
-        bars = []
-        for j, rid in enumerate(run_ids):
-            run = runs[rid] or {}
-            label = html.escape(str(run.get("label") or rid))
-            pct = _metric_pct((run.get("metrics") or {}).get(metric))
-            color = PASTELS[j % len(PASTELS)]
-            if pct is None:
-                value_label, height = "N/A", 0.0
-            else:
-                value_label, height = f"{pct:.1f}%", max(0.0, min(100.0, pct))
-            bars.append(
-                f'<div class="rag-bar-col" style="display:flex;flex-direction:column;'
-                f'align-items:center;gap:6px;flex:1;">'
-                f'<div class="rag-bar-value" style="font-size:0.8rem;font-weight:600;'
-                f'color:{PALETTE["ink"]};">{value_label}</div>'
-                f'<div class="rag-bar-track" style="width:38px;height:140px;'
-                f'background:{PALETTE["active_pill"]};border-radius:10px;'
-                f'display:flex;align-items:flex-end;overflow:hidden;">'
-                f'<div class="rag-bar-fill" style="width:100%;height:{height:.1f}%;'
-                f'background:{color};border-radius:10px 10px 0 0;"></div></div>'
-                f'<div class="rag-bar-label" style="font-size:0.72rem;'
-                f'color:{PALETTE["muted"]};text-align:center;">{label}</div></div>'
-            )
-        thr = _metric_pct(thresholds.get(metric))
-        thr_html = (f'<div class="rag-bar-thr" style="font-size:0.7rem;'
-                    f'color:{PALETTE["muted"]};text-align:center;margin-top:6px;">'
-                    f'Ngưỡng {thr:.0f}%</div>') if thr is not None else ""
-        metric_title = html.escape(str(metric).replace("_", " "))
-        groups.append(
-            f'<div class="rag-bar-group" style="flex:1;min-width:150px;">'
-            f'<div class="rag-bar-metric" style="font-size:0.8rem;font-weight:600;'
-            f'color:{PALETTE["ink"]};margin-bottom:8px;text-align:center;">{metric_title}</div>'
-            f'<div class="rag-bar-row" style="display:flex;gap:10px;align-items:flex-end;'
-            f'justify-content:center;">{"".join(bars)}</div>{thr_html}</div>'
-        )
-    return (
-        f'<div class="rag-chart" style="display:flex;flex-wrap:wrap;gap:20px;'
-        f'background:{PALETTE["card"]};border:1px solid {PALETTE["border"]};'
-        f'border-radius:14px;padding:18px;">{"".join(groups)}</div>'
     )
 
 

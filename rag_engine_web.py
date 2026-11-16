@@ -283,7 +283,7 @@ def get_rag():
 
 
 def inspect_retrieval(bundle, question):
-    """Mổ xẻ 2 tầng truy hồi cho Live Pipeline Inspector (trang Đánh giá RAG).
+    """Mổ xẻ 2 tầng truy hồi cho trang Kiểm tra truy hồi (views/inspector.py).
 
     Hàm thuần: chỉ dùng bundle + ui.catalog + time, không Streamlit/LLM,
     không mutate Document hay metadata gốc trong docstore. Mỗi candidate/selected

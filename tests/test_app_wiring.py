@@ -11,13 +11,11 @@ class TestAppWiring(unittest.TestCase):
             "app.py",
             "rag_engine_web.py",
             "ui/catalog.py",
-            "ui/eval_schema.py",
             "ui/theme.py",
             "ui/state.py",
             "views/chat.py",
             "views/documents.py",
-            "views/evaluation.py",
-            "scripts/export_eval_to_web.py",
+            "views/inspector.py",
         ]
         for rel in expected_files:
             p = ROOT / rel
@@ -29,6 +27,14 @@ class TestAppWiring(unittest.TestCase):
         self.assertIn("torch==2.6.0+cpu", req)
         self.assertNotIn("ragas", req.lower())
         self.assertNotIn("plotly", req.lower())
+
+    def test_nav_routes_to_inspector_and_keeps_no_eval_page(self):
+        # Báo cáo Quality Gate/RAGAS sống trong Colab; web chỉ cần chỗ debug truy hồi.
+        src = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertIn('("inspector"', src)
+        self.assertIn("render_inspector_view", src)
+        self.assertNotIn("evaluation", src)
+        self.assertNotIn("Đánh giá RAG", src)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ from ui.theme import (
     _global_css,
     clean_snippet,
     render_citation_box_html,
-    render_pastel_bar_chart_html,
 )
 
 
@@ -49,15 +48,6 @@ class TestThemeRenderers(unittest.TestCase):
         css = _global_css()
         self.assertNotIn('[data-testid="stToolbar"] { display:none; }', css)
         self.assertIn('[data-testid="stToolbarActions"] { display:none; }', css)
-
-    def test_pastel_bar_chart_renders_single_or_dual_runs_and_nan_metrics(self):
-        runs = {
-            "baseline": {"label": "No Rerank", "metrics": {"recall_at_k": 0.65, "faithfulness": None}},
-            "rerank": {"label": "Cohere Rerank", "metrics": {"recall_at_k": 0.88, "faithfulness": float("nan")}},
-        }
-        html = render_pastel_bar_chart_html(runs, metric_keys=["recall_at_k", "faithfulness"])
-        self.assertIn("88.0%", html)
-        self.assertIn("N/A", html)
 
 
 if __name__ == "__main__":
