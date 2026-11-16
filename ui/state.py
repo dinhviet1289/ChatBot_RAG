@@ -5,6 +5,21 @@ import uuid
 DEFAULT_TITLE = "Cuộc hội thoại mới"
 TITLE_MAX = 38
 
+SUGGESTED_CARDS = [
+    {"icon": "school", "title": "Khái niệm nền tảng",
+     "subtitle": "PEAS, tác tử, môi trường",
+     "prompt": "Mô hình PEAS gồm những thành phần nào? Cho ví dụ."},
+    {"icon": "account_tree", "title": "Thuật toán tìm kiếm",
+     "subtitle": "DFS, BFS, A*, UCS",
+     "prompt": "So sánh thuật toán DFS và BFS."},
+    {"icon": "psychology", "title": "Học sâu & LLM",
+     "subtitle": "GAN, VAE, Transformer",
+     "prompt": "LLM là gì? Kiến trúc gồm những thành phần nào?"},
+    {"icon": "casino", "title": "CSP & đối kháng",
+     "subtitle": "N-Queens, Minimax",
+     "prompt": "Giải thích bài toán N-Queens dưới dạng CSP."},
+]
+
 
 def _new_conv():
     return {"id": uuid.uuid4().hex[:8], "title": DEFAULT_TITLE, "messages": []}
@@ -78,5 +93,5 @@ def prepare_regenerate(state):
 
 def ask_about_document(state, doc_id, prompt):
     init_state(state)
-    state["active_page"] = "inspector"
+    state["active_page"] = "conversation"
     state["pending_prompt"] = prompt

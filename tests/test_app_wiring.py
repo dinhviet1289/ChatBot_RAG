@@ -14,6 +14,7 @@ class TestAppWiring(unittest.TestCase):
             "ui/catalog.py",
             "ui/theme.py",
             "ui/state.py",
+            "views/conversation.py",
             "views/documents.py",
             "views/inspector.py",
         ]
@@ -47,11 +48,26 @@ class TestAppWiring(unittest.TestCase):
         state_src = (ROOT / "ui" / "state.py").read_text(encoding="utf-8")
         self.assertIn('setdefault("active_page", "documents")', state_src)
 
-    def test_inspector_streams_through_the_model_fallback_and_persists_turns(self):
+    def test_nav_buttons_each_have_a_concrete_job(self):
+        # Nút "Hỏi đáp" thừa: mở cuộc hội thoại đã vào màn hình chat rồi. Nav chỉ
+        # giữ Kho tài liệu + Kiểm tra truy hồi (debug); màn hình hội thoại đi lối sidebar.
+        src = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertNotIn('"Hỏi đáp")', src)
+        self.assertIn('"Kiểm tra truy hồi")', src)
+        self.assertIn("render_conversation_view", src)
+        self.assertIn('state["active_page"] = "conversation"', src)
+
+    def test_sidebar_navigation_never_double_reruns(self):
+        # Click button đã tự rerun một lần; gọi thêm st.rerun() trong handler là
+        # render gấp đôi -> nhấp nháy mỗi lần đổi cuộc hội thoại / tạo mới / đổi trang.
+        src = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertNotIn("st.rerun()", src)
+
+    def test_conversation_view_streams_through_the_model_fallback_and_persists_turns(self):
         # Gọi thẳng answer_chain.stream() sẽ bỏ qua bước đổi model/key khi hết hạn mức.
-        # Inspector giờ là mặt trận hỏi đáp chính: phải stream trực tiếp, lưu lượt
-        # hỏi/trả lời vào cuộc hội thoại và render lại lịch sử + trích dẫn.
-        src = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
+        # Màn hình hội thoại phải stream trực tiếp, lưu lượt hỏi/trả lời và render
+        # lại lịch sử + trích dẫn.
+        src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
         self.assertIn("stream_answer", src)
         self.assertIn("model_chain", src)
         self.assertIn("st.write_stream", src)
@@ -62,23 +78,39 @@ class TestAppWiring(unittest.TestCase):
         self.assertNotIn('bundle["answer_chain"].stream(', src)
         self.assertNotIn('bundle["answer_chain"].invoke(', src)
 
-    def test_inspector_is_conversation_first_not_a_query_form(self):
-        # Bấm "Cuộc hội thoại mới" phải ra màn hình chat (ô nhập dưới đáy, Enter để
-        # gửi), không phải form truy vấn bắt bấm "Chạy"; số liệu debug nằm trong expander.
-        src = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
+    def test_conversation_screen_is_chat_first(self):
+        src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
         self.assertIn("st.chat_input", src)
         self.assertIn("st.expander", src)
         self.assertNotIn("st.checkbox", src)
         self.assertNotIn('key="insp_q"', src)
 
-    def test_retrieval_probe_is_opt_in_mode_not_on_the_default_screen(self):
-        # Màn hình hội thoại mới không được phơi khung debug ra giữa trang;
-        # chế độ kiểm tra truy hồi chỉ hiện khi bật công tắc insp_debug.
+    def test_new_conversation_opens_with_four_big_suggestion_cards(self):
+        # Cuộc hội thoại mới mở ra bằng hero + lưới 2x2 thẻ gợi ý lớn (như bản đầu),
+        # không phải hàng chip nhỏ.
+        src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
+        self.assertIn("SUGGESTED_CARDS", src)
+        self.assertIn("st.columns(2)", src)
+        self.assertIn("Bạn muốn ôn tập phần nào?", src)
+        self.assertNotIn("PRESET_QUESTIONS", src)
+
+    def test_conversation_presets_do_not_force_an_extra_render(self):
+        # Bấm thẻ gợi ý chỉ queue pending_prompt rồi đi tiếp trong cùng một lần chạy;
+        # st.rerun() ở đây làm màn hình render 2 lần (giật).
+        src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
+        empty_block = src.split("def _render_empty_state")[1].split("def render_conversation_view")[0]
+        self.assertIn("pending_prompt", empty_block)
+        self.assertNotIn("st.rerun()", empty_block)
+
+    def test_inspector_is_a_dedicated_retrieval_probe(self):
+        # Trang nav "Kiểm tra truy hồi": chỉ mổ xẻ retrieve/rerank, không đụng
+        # lịch sử hội thoại, không phải màn hình chat.
         src = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
-        self.assertIn("st.toggle", src)
-        self.assertIn("insp_debug", src)
-        app_src = (ROOT / "app.py").read_text(encoding="utf-8")
-        self.assertIn('"Hỏi đáp")', app_src)
+        self.assertIn("inspect_retrieval", src)
+        self.assertIn("st.button", src)
+        self.assertNotIn("append_user_turn", src)
+        self.assertNotIn("st.chat_input", src)
+        self.assertNotIn("insp_debug", src)
 
     def test_messages_and_expanders_have_entrance_motion(self):
         from ui.theme import _global_css
@@ -89,10 +121,10 @@ class TestAppWiring(unittest.TestCase):
         self.assertIn('[data-testid="stChatMessage"] { animation', css)
         self.assertIn('[data-testid="stExpander"]', css)
 
-    def test_inspector_rotates_keys_and_never_prints_one(self):
+    def test_conversation_rotates_keys_and_never_prints_one(self):
         # Hết mọi model của một key thì phải sang key kế; key chỉ hiện dưới dạng
         # số thứ tự, in nguyên văn là lộ secret ra giao diện công khai.
-        src = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
+        src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
         self.assertIn("rotation_pairs", src)
         self.assertIn("groq_keys", src)
         self.assertNotIn("GROQ_API_KEY", src)

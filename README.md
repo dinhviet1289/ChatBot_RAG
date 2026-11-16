@@ -18,24 +18,28 @@ từ repo GitHub này — không cần Colab/ngrok.
   (`RERANK_PROVIDER=local`) chỉ cho Colab/máy >2GB RAM; pipeline đầy đủ vẫn giữ trong notebook để eval.
 - **Eval (RAGAS):** chạy trong Colab, KHÔNG nằm trong repo web này.
 
-## Giao diện 2 trang (Figma Indigo)
+## Giao diện (Figma Indigo)
 
 `app.py` là shell `layout="wide"` với sidebar trái (brand, nút "Cuộc hội thoại mới",
-2 nút điều hướng, danh sách cuộc hội thoại **mới nhất nằm trên cùng**, thẻ trạng thái
-hệ thống gồm **Rerank đang bật/tắt**). Hai view tách trong `views/`:
+2 nút điều hướng, danh sách cuộc hội thoại **mới nhất nằm trên cùng** — cuộc đang mở
+được tô sáng, thẻ trạng thái hệ thống gồm **Rerank đang bật/tắt**). Ba view trong `views/`:
 
-- `views/documents.py` — Kho tài liệu (trang mặc định): KPI (số học liệu / chunks /
+- `views/documents.py` — Kho tài liệu (trang mặc định, nav): KPI (số học liệu / chunks /
   chiều embedding), lọc theo nhóm + tìm kiếm, thẻ từng tài liệu kèm link Drive và
-  "Hỏi thử tài liệu này" (chuyển thẳng sang trang Hỏi đáp và chạy luôn câu hỏi mẫu).
-- `views/inspector.py` — Hỏi đáp: màn hình hội thoại thuần (ô chat dưới đáy, Enter để
-  gửi), lịch sử cuộc hội thoại đang mở + gợi ý khi trống, trả lời streaming kèm trích
-  dẫn bền vững và nút "Tạo lại câu trả lời"; expander số liệu ms retrieve/rerank,
-  Top-K kèm rank-delta và ứng viên stage-1 nằm dưới mỗi lượt. Công tắc
-  "Kiểm tra truy hồi" ở đầu trang mở khung debug retrieve/rerank không gọi LLM —
-  mặc định tắt nên cuộc hội thoại mới không phơi form truy vấn ra màn hình.
+  "Hỏi thử tài liệu này" (mở màn hình hội thoại và chạy luôn câu hỏi mẫu).
+- `views/conversation.py` — Màn hình hội thoại, mở từ sidebar (tạo mới / chọn cuộc
+  hội thoại / hỏi thử tài liệu), không nằm trong nav: ô chat dưới đáy (Enter để gửi),
+  cuộc mới mở ra bằng hero "Bạn muốn ôn tập phần nào?" + **4 thẻ gợi ý lớn lưới 2×2**
+  (bấm thẻ chạy luôn, không render lại lần hai), lịch sử + trả lời streaming kèm
+  trích dẫn bền vững và nút "Tạo lại câu trả lời"; expander số liệu ms retrieve/rerank,
+  Top-K kèm rank-delta và ứng viên stage-1 nằm dưới mỗi lượt.
+- `views/inspector.py` — Kiểm tra truy hồi (nav): nhập câu hỏi bất kỳ để xem tầng
+  hybrid retrieve + rerank chọn tài liệu nào, hạng nào bị kéo lên/xuống, mất bao
+  nhiêu ms. Không gọi LLM nên không tốn token hạn mức.
 
-Trang Chat riêng đã bị gỡ — hỏi đáp và debug truy hồi dùng chung một màn hình.
-Logic thuần nằm trong `ui/` (`catalog`, `state`, `theme`) để unit-test
+Chuyển trang / đổi cuộc hội thoại / tạo mới chỉ đổi state rồi để lần chạy hiện tại
+tự render (sidebar chạy trước dispatch) — không rerun thủ công nên không nhấp nháy
+hai lần. Logic thuần nằm trong `ui/` (`catalog`, `state`, `theme`) để unit-test
 không cần Streamlit. Renderer HTML escape mọi text và chỉ nhận link `https://`.
 
 > Đánh giá định lượng (Quality Gate + RAGAS) nằm trong Colab, không ở web app — xem

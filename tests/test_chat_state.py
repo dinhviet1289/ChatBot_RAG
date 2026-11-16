@@ -58,18 +58,25 @@ class TestChatState(unittest.TestCase):
         first_conv = [c for c in state["conversations"] if c["id"] != other_id][0]
         self.assertEqual(len(first_conv["messages"]), 2)
 
-    def test_ask_about_document_switches_to_inspector_with_pending_prompt(self):
+    def test_ask_about_document_switches_to_conversation_with_pending_prompt(self):
         state = {}
         init_state(state)
         state["active_page"] = "documents"
         ask_about_document(state, "udl_ch15_gans", "Giải thích hàm mục tiêu của mạng GAN.")
-        self.assertEqual(state["active_page"], "inspector")
+        self.assertEqual(state["active_page"], "conversation")
         self.assertEqual(state["pending_prompt"], "Giải thích hàm mục tiêu của mạng GAN.")
 
     def test_init_state_lands_on_documents_page(self):
         state = {}
         init_state(state)
         self.assertEqual(state["active_page"], "documents")
+
+    def test_suggested_cards_are_four_big_examples_with_prompt(self):
+        from ui.state import SUGGESTED_CARDS
+        self.assertEqual(len(SUGGESTED_CARDS), 4)
+        for card in SUGGESTED_CARDS:
+            self.assertEqual(set(card), {"icon", "title", "subtitle", "prompt"})
+            self.assertTrue(card["icon"] and card["title"] and card["subtitle"] and card["prompt"])
 
     def test_new_conversations_are_listed_newest_first(self):
         state = {}

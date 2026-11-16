@@ -8,6 +8,7 @@ from ui.state import (
     init_state,
 )
 from ui.theme import inject_global_css
+from views.conversation import render_conversation_view
 from views.documents import render_documents_view
 from views.inspector import render_inspector_view
 
@@ -32,37 +33,37 @@ except Exception as e:
 
 state = st.session_state
 NAV = [("documents", ":material/folder_open:", "Kho tài liệu"),
-       ("inspector", ":material/forum:", "Hỏi đáp")]
+       ("inspector", ":material/science:", "Kiểm tra truy hồi")]
 
+# Sidebar chạy TRƯỚC dispatch ở cuối file: handler chỉ cần đổi state, lần chạy
+# hiện tại sẽ tự render trang mới. Gọi rerun thủ công ở đây là render gấp đôi.
 with st.sidebar:
     st.markdown("### ELC3008")
     st.caption("Trí tuệ nhân tạo trong kinh doanh · DUE")
     if st.button(":material/add: Cuộc hội thoại mới", width="stretch", type="primary"):
         create_new_conversation(state)
-        state["active_page"] = "inspector"
-        st.rerun()
+        state["active_page"] = "conversation"
     for key, icon, label in NAV:
         active = state["active_page"] == key
         if st.button(f"{icon} {label}", key=f"nav_{key}", width="stretch",
                      type="primary" if active else "secondary"):
             state["active_page"] = key
-            st.rerun()
     st.divider()
     st.caption("Cuộc hội thoại")
     for conv in state["conversations"]:
         c1, c2 = st.columns([0.85, 0.15])
         with c1:
-            if st.button(conv["title"], key=f"conv_{conv['id']}", width="stretch"):
+            opened = (conv["id"] == state["active_conv_id"]
+                      and state["active_page"] == "conversation")
+            if st.button(conv["title"], key=f"conv_{conv['id']}", width="stretch",
+                         type="primary" if opened else "secondary"):
                 state["active_conv_id"] = conv["id"]
-                state["active_page"] = "inspector"
-                st.rerun()
+                state["active_page"] = "conversation"
         with c2:
             if st.button(":material/delete:", key=f"del_{conv['id']}"):
                 delete_conversation(state, conv["id"])
-                st.rerun()
     if st.button("Xóa tất cả", width="stretch"):
         clear_all_conversations(state)
-        st.rerun()
     st.divider()
     cfg = bundle["config"]
     with st.container(border=True):
@@ -77,7 +78,9 @@ with st.sidebar:
         st.caption(f"Embed {cfg.get('embed_model')}")
 
 page = state["active_page"]
-if page == "inspector":
+if page == "conversation":
+    render_conversation_view(bundle)
+elif page == "inspector":
     render_inspector_view(bundle)
 else:
     render_documents_view(bundle)

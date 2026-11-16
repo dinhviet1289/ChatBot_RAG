@@ -1,46 +1,14 @@
-"""Hỏi đáp: màn hình hội thoại thuần; chế độ kiểm tra truy hồi là công tắc riêng.
-
-Ô chat dưới đáy (Enter để gửi) điều khiển luồng hỏi đáp; mỗi lượt được lưu vào
-cuộc hội thoại đang mở kèm trích dẫn và expander số liệu truy hồi. Khung debug
-chỉ hiện khi bật công tắc "Kiểm tra truy hồi" ở đầu trang, nên cuộc hội thoại
-mới không bao giờ mở ra bằng một form truy vấn.
+"""Kiểm tra truy hồi — trang nav riêng: mổ xẻ tầng hybrid retrieve + rerank cho
+một câu hỏi bất kỳ, không gọi LLM nên không tốn token hạn mức. Tách khỏi màn
+hình hội thoại để cuộc hội thoại mới luôn mở ra bằng ô chat trống.
 """
-
-import time
 
 import streamlit as st
 
-from rag_engine_web import (
-    describe_llm_error,
-    inspect_retrieval,
-    model_chain,
-    rotation_pairs,
-    stream_answer,
-)
-from ui.catalog import should_show_sources, sources_from_inspection
-from ui.state import (
-    append_assistant_turn,
-    append_user_turn,
-    get_active_conversation,
-    prepare_regenerate,
-)
-from ui.theme import render_citation_box_html
-
-PRESET_QUESTIONS = ["So sánh DFS và BFS", "PEAS là gì?", "GAN khác VAE thế nào?"]
-USER_AVATAR = ":material/person:"
-AI_AVATAR = ":material/school:"
+from rag_engine_web import inspect_retrieval
 
 
-def _render_history(conv):
-    for msg in conv["messages"]:
-        avatar = USER_AVATAR if msg["role"] == "user" else AI_AVATAR
-        with st.chat_message(msg["role"], avatar=avatar):
-            st.markdown(msg["content"])
-            if msg["role"] == "assistant" and msg.get("sources"):
-                st.markdown(render_citation_box_html(msg["sources"]), unsafe_allow_html=True)
-
-
-def _render_retrieval_panel(res):
+def render_retrieval_panel(res):
     t1, t2, t3 = st.columns(3)
     with t1:
         st.metric("Hybrid retrieve", f"{res['retrieve_ms']:.0f} ms")
@@ -66,93 +34,14 @@ def _render_retrieval_panel(res):
             st.caption(f"#{item['initial_rank']} {item['doc_title']} · trang {item['trang']}")
 
 
-def _render_debug_probe(bundle):
+def render_inspector_view(bundle):
+    st.markdown("### Kiểm tra truy hồi")
+    st.caption("Nhập một câu hỏi để xem tầng truy hồi chọn tài liệu nào: thứ tự hybrid, "
+               "rerank kéo hạng nào lên/xuống, mất bao nhiêu ms. Không gọi LLM — không tốn token.")
     with st.container(border=True):
-        st.caption(":material/science: Chế độ kiểm tra truy hồi — chỉ chạy hybrid retrieve + rerank, không gọi LLM.")
         dq = st.text_input("Câu hỏi kiểm tra", key="dbg_q",
                            placeholder="Nhập câu hỏi để xem tầng truy hồi chọn tài liệu nào...")
         dq = (dq or "").strip()
         if st.button("Chạy kiểm tra", key="dbg_run") and dq:
             with st.spinner("Đang truy hồi tài liệu..."):
-                _render_retrieval_panel(inspect_retrieval(bundle, dq))
-
-
-def render_inspector_view(bundle):
-    state = st.session_state
-    conv = get_active_conversation(state)
-
-    head, mode = st.columns([0.72, 0.28])
-    with head:
-        st.markdown("### Hỏi đáp")
-        st.caption("Enter để gửi câu hỏi. Câu trả lời kèm trích dẫn được lưu vào cuộc hội thoại; "
-                   "số liệu vì sao tài liệu được chọn nằm trong mục mở rộng dưới mỗi lượt.")
-    with mode:
-        st.toggle(":material/science: Kiểm tra truy hồi", key="insp_debug",
-                  help="Bật để mở khung debug retrieve/rerank không tốn token LLM.")
-    if state.get("insp_debug"):
-        _render_debug_probe(bundle)
-
-    _render_history(conv)
-
-    if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
-        if st.button(":material/refresh: Tạo lại câu trả lời", key="regen"):
-            q = prepare_regenerate(state)
-            if q:
-                state["pending_prompt"] = q
-                st.rerun()
-
-    if not conv["messages"] and not state.get("pending_prompt"):
-        st.caption("Gợi ý để bắt đầu:")
-        pc = st.columns(3)
-        for c, p in zip(pc, PRESET_QUESTIONS):
-            if c.button(p, width="stretch", key=f"preset_{p}"):
-                state["pending_prompt"] = p
-                st.rerun()
-
-    prompt = st.chat_input("Nhập câu hỏi của bạn...")
-    if state.get("pending_prompt"):
-        prompt = state.pop("pending_prompt")
-    prompt = (prompt or "").strip()
-    if not prompt:
-        return
-
-    started = time.perf_counter()
-    append_user_turn(state, prompt)
-    with st.chat_message("user", avatar=USER_AVATAR):
-        st.markdown(prompt)
-
-    with st.spinner("Đang truy hồi tài liệu..."):
-        res = inspect_retrieval(bundle, prompt)
-
-    ctx = "\n\n".join(it["snippet"] for it in res["selected"])
-    keys = bundle["config"]["groq_keys"]
-    served = {}
-    with st.chat_message("assistant", avatar=AI_AVATAR):
-        try:
-            answer = st.write_stream(stream_answer(
-                bundle["make_answer_chain"],
-                rotation_pairs(keys, model_chain(bundle["config"]["llm_model"])),
-                {"context": ctx, "question": prompt},
-                report=lambda model, key, fell_back: served.update(
-                    model=model, key=key, fell_back=fell_back)))
-            sources = sources_from_inspection(res["selected"]) if should_show_sources(answer) else []
-            if served:
-                where = (f" · key {keys.index(served['key']) + 1}/{len(keys)}"
-                         if len(keys) > 1 else "")
-                note = (f" :material/swap_horiz: `{bundle['config']['llm_model']}` vừa cạn hạn mức, "
-                        f"câu này trả lời bằng model khác." if served.get("fell_back") else "")
-                st.caption(f"LLM `{served['model']}`{where}.{note}")
-            if sources:
-                st.markdown(render_citation_box_html(sources), unsafe_allow_html=True)
-        except Exception as exc:
-            answer = describe_llm_error(exc)
-            sources = []
-            st.error(answer)
-            if st.button(":material/refresh: Thử lại", key="retry_after_error"):
-                again = prepare_regenerate(state)
-                if again:
-                    state["pending_prompt"] = again
-                    st.rerun()
-    append_assistant_turn(state, answer, sources, latency_s=time.perf_counter() - started)
-    with st.expander("Chi tiết truy hồi của lượt này"):
-        _render_retrieval_panel(res)
+                render_retrieval_panel(inspect_retrieval(bundle, dq))
