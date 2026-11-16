@@ -11,16 +11,17 @@ import re
 from string import Template
 
 PALETTE = {
-    "canvas": "#F4F6FB",
-    "sidebar": "#FFFFFF",
-    "card": "#FFFFFF",
-    "primary": "#5B6EF5",
+    "canvas": "#0E1117",
+    "sidebar": "#151922",
+    "card": "#1C2230",
+    "primary": "#5A5BE0",
     "primary_end": "#6A5AE0",
-    "active_pill": "#EBF0FF",
-    "callout": "#EEF3FF",
-    "ink": "#1E293B",
-    "muted": "#64748B",
-    "border": "#E2E8F0",
+    "active_pill": "#252D46",
+    "callout": "#1B243B",
+    "ink": "#E6EDF3",
+    "muted": "#A6B2C5",
+    "border": "#4A566E",
+    "link": "#B4BFFE",
 }
 
 PASTELS = ["#4FD1C5", "#F6AD55", "#63B3ED", "#9F7AEA", "#FC8181", "#68D391"]
@@ -75,7 +76,10 @@ def render_citation_box_html(sources):
         page_html = (f'<span class="rag-cite-page">· Trang {html.escape(trang)}</span>'
                      if trang else "")
         snippet = clean_snippet(s.get("snippet") or "", max_len=200)
-        snippet_html = f'<div class="rag-cite-snippet">{snippet}</div>' if snippet else ""
+        snippet_html = (f'<details class="rag-cite-details">'
+                        f'<summary>Trích đoạn</summary>'
+                        f'<div class="rag-cite-snippet">{snippet}</div></details>'
+                        if snippet else "")
         items.append(
             f'<li class="rag-cite-item">'
             f'<span class="rag-cite-arrow">→</span>'
@@ -89,7 +93,7 @@ def render_citation_box_html(sources):
         f'<div class="rag-citation" style="background:{PALETTE["callout"]};'
         f'border:1px solid {PALETTE["border"]};border-radius:12px;'
         f'padding:14px 16px;margin-top:10px;">'
-        f'<div class="rag-citation-head" style="color:{PALETTE["primary"]};'
+        f'<div class="rag-citation-head" style="color:{PALETTE["link"]};'
         f'font-weight:600;font-size:0.82rem;letter-spacing:0.03em;margin-bottom:6px;">'
         f'NGUỒN TRÍCH DẪN ({len(sources)})</div>'
         f'<ol class="rag-cite-list" style="list-style:none;margin:0;padding:0;">'
@@ -163,9 +167,9 @@ def render_pastel_bar_chart_html(runs, thresholds=None, metric_keys=None):
 
 
 _CSS_TEMPLATE = Template("""
-:root { color-scheme: light;
+:root { color-scheme: dark;
   --canvas:$canvas; --sidebar:$sidebar; --card:$card; --ink:$ink; --muted:$muted;
-  --border:$border; --primary:$primary; --primary-end:$primary_end;
+  --border:$border; --primary:$primary; --primary-end:$primary_end; --link:$link;
   --active-pill:$active_pill; --callout:$callout; }
 html, body, [data-testid="stApp"] { background:var(--canvas); color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; }
@@ -177,7 +181,7 @@ h1 { font-weight:700; letter-spacing:-0.02em; color:var(--ink); }
 h2, h3 { color:var(--ink); letter-spacing:-0.01em; }
 [data-testid="stMarkdownContainer"] { color:var(--ink); }
 [data-testid="stCaptionContainer"] { color:var(--muted); }
-a, a:visited { color:var(--primary); }
+a, a:visited { color:var(--link); }
 [data-testid="stSidebar"] { background:var(--sidebar); border-right:1px solid var(--border); }
 [data-testid="stSidebar"] * { color:var(--ink); }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] { color:var(--muted); }
@@ -185,11 +189,11 @@ a, a:visited { color:var(--primary); }
   background:var(--active-pill); color:var(--ink); border:1px solid var(--border);
   border-radius:999px; text-align:left; font-weight:500; }
 [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {
-  border-color:var(--primary); color:var(--primary); }
+  border-color:var(--link); color:var(--link); }
 [data-testid="stChatMessage"] { background:var(--card); border:1px solid var(--border);
   border-radius:14px; padding:1rem 1.25rem; box-shadow:0 1px 2px rgba(15,23,42,0.04); }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
-  background:var(--active-pill); border-color:#C7D2FE; }
+  background:var(--active-pill); border-color:var(--border); }
 [data-testid="stVerticalBlockBorderWrapper"] { background:var(--card);
   border:1px solid var(--border); border-radius:14px; }
 [data-testid="stBaseButton-secondary"] { background:var(--card); color:var(--ink);
@@ -202,15 +206,23 @@ a, a:visited { color:var(--primary); }
 [data-testid="stChatInput"] textarea, [data-testid="stChatInputTextArea"] { color:var(--ink); }
 .rag-cite-item { padding:6px 0; border-bottom:1px dashed var(--border); font-size:0.9rem; }
 .rag-cite-item:last-child { border-bottom:none; }
-.rag-cite-arrow { color:var(--primary); margin-right:6px; }
+.rag-cite-arrow { color:var(--link); margin-right:6px; }
 .rag-cite-num { color:var(--muted); font-weight:600; }
-.rag-cite-title a { color:var(--primary); font-weight:600; text-decoration:none; }
+.rag-cite-title a { color:var(--link); font-weight:600; text-decoration:none; }
 .rag-cite-title a:hover { text-decoration:underline; }
 .rag-cite-id { color:var(--muted); font-size:0.78rem; }
 .rag-cite-page { color:var(--muted); font-size:0.8rem; margin-left:4px; }
-.rag-cite-score { background:var(--active-pill); color:var(--primary);
+.rag-cite-score { background:var(--active-pill); color:var(--link);
   border-radius:999px; padding:1px 8px; font-size:0.74rem; font-weight:600; margin-left:6px; }
-.rag-cite-snippet { color:var(--muted); font-size:0.82rem; margin-top:4px; line-height:1.45; }
+.rag-cite-details { margin-top:4px; }
+.rag-cite-details > summary { color:var(--muted); font-size:0.78rem; cursor:pointer;
+  list-style:none; display:inline-block; }
+.rag-cite-details > summary::before { content:"▸ "; }
+.rag-cite-details[open] > summary::before { content:"▾ "; }
+.rag-cite-details > summary:hover { color:var(--ink); }
+.rag-cite-details > summary:focus-visible { outline:2px solid var(--link); outline-offset:2px; }
+.rag-cite-snippet { color:var(--muted); font-size:0.82rem; margin-top:4px; line-height:1.45;
+  border-left:2px solid var(--border); padding-left:8px; }
 """)
 
 

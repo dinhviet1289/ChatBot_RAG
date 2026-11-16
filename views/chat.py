@@ -11,7 +11,7 @@ from ui.state import (
     get_active_conversation,
     prepare_regenerate,
 )
-from ui.theme import clean_snippet, render_citation_box_html
+from ui.theme import render_citation_box_html
 
 USER_AVATAR = ":material/person:"
 AI_AVATAR = ":material/school:"
@@ -19,10 +19,6 @@ AI_AVATAR = ":material/school:"
 
 def _render_sources(sources):
     st.markdown(render_citation_box_html(sources), unsafe_allow_html=True)
-    with st.expander("Xem đoạn trích nguyên văn"):
-        for s in sources:
-            st.markdown(f"**{s['doc_title']}** · Trang {s['trang']}")
-            st.caption(clean_snippet(s["snippet"], max_len=400))
 
 
 def _render_empty_state(state):

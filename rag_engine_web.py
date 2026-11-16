@@ -1,7 +1,9 @@
 import copy
 import logging
 import os
+import re
 import time
+import unicodedata
 from pathlib import Path
 
 # Chỉ import stdlib ở cấp module: mọi thư viện bên thứ ba (streamlit, faiss,
@@ -96,6 +98,19 @@ def format_docs(docs):
     return "\n\n".join(parts)
 
 
+_BM25_STOPWORDS = frozenset({
+    "là", "gì", "và", "của", "có", "các", "những", "nào", "cho", "về",
+    "trong", "một", "được", "với", "như", "thế",
+})
+
+
+def tokenize_bm25(text):
+    text = unicodedata.normalize("NFC", text)
+    text = re.sub(r"([a-z])([A-Z]{2,})", r"\1 \2", text)
+    return [word for word in re.findall(r"[^\W_]+", text.casefold())
+            if word not in _BM25_STOPWORDS]
+
+
 def _dedup(docs):
     uniq = {}
     for d in docs:
@@ -182,7 +197,7 @@ def get_rag_bundle():
 
     # Dựng lại BM25 từ docstore đã lưu để web tự chạy, không cần chunk lại
     bm25 = BM25Retriever.from_documents(list(db.docstore._dict.values()),
-                                        preprocess_func=lambda t: t.lower().split())
+                                        preprocess_func=tokenize_bm25)
     bm25.k = RETRIEVE_N
     vector_ret = db.as_retriever(search_type="similarity", search_kwargs={"k": RETRIEVE_N})
     ensemble = EnsembleRetriever(retrievers=[bm25, vector_ret], weights=[0.3, 0.7])

@@ -18,6 +18,18 @@ class FakeDoc:
 
 
 class TestCatalogAndEngine(unittest.TestCase):
+    def test_bm25_matches_pdf_acronyms_and_query_punctuation(self):
+        from rag_engine_web import tokenize_bm25
+        query = tokenize_bm25("Mô hình PEAS là gì?")
+        chunk = tokenize_bm25("thePEAS (Performance Measure,Environment,Actuators, Sensors)")
+        self.assertIn("peas", query)
+        self.assertIn("peas", chunk)
+        self.assertIn("environment", chunk)
+        self.assertNotIn("gì", query)
+        self.assertNotIn("là", query)
+        self.assertIn("hình", query)
+        self.assertIn("dfs", tokenize_bm25("DFS/BFS"))
+
     def test_catalog_covers_all_18_indexed_docs_and_13_links(self):
         self.assertEqual(len(CATALOG), 18)
         self.assertEqual(len(DRIVE_LINKS), 13)
