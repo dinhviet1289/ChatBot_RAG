@@ -171,7 +171,7 @@ html, body, [data-testid="stApp"] { background:var(--canvas); color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; }
 [data-testid="stHeader"] { background:transparent; }
 #MainMenu, footer { visibility:hidden; }
-[data-testid="stToolbar"] { display:none; }
+[data-testid="stToolbarActions"] { display:none; }
 [data-testid="stMainBlockContainer"] { max-width:880px; margin:0 auto; padding-top:2.5rem; }
 h1 { font-weight:700; letter-spacing:-0.02em; color:var(--ink); }
 h2, h3 { color:var(--ink); letter-spacing:-0.01em; }

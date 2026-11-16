@@ -1,6 +1,7 @@
 import unittest
 from ui.theme import (
     PALETTE,
+    _global_css,
     clean_snippet,
     render_citation_box_html,
     render_pastel_bar_chart_html,
@@ -41,6 +42,13 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn("CS188 &lt;Search&gt;", html)
         self.assertIn("0.912", html)
         self.assertIn("Từ Minh Phương", html)
+
+    def test_global_css_keeps_sidebar_expand_control_reachable(self):
+        # stExpandSidebarButton lives inside stToolbar; hiding the whole toolbar
+        # strands a collapsed sidebar with no way to reopen it.
+        css = _global_css()
+        self.assertNotIn('[data-testid="stToolbar"] { display:none; }', css)
+        self.assertIn('[data-testid="stToolbarActions"] { display:none; }', css)
 
     def test_pastel_bar_chart_renders_single_or_dual_runs_and_nan_metrics(self):
         runs = {
