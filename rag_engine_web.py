@@ -100,6 +100,18 @@ def format_docs(docs):
     return "\n\n".join(parts)
 
 
+def describe_llm_error(exc):
+    """Thay traceback khi gọi mô hình trả lời thất bại (hết hạn mức, mạng, lỗi API).
+
+    Không chép lại thông điệp gốc: body của Groq có thể chứa URL hoặc fragment
+    nhạy cảm, còn người dùng cần biết cách xử lý chứ không cần stack trace.
+    """
+    if "RateLimit" in type(exc).__name__:
+        return ("Hạn mức gọi mô hình miễn phí đã hết trong vài phút. "
+                "Đợi khoảng một phút rồi bấm **Tạo lại câu trả lời**.")
+    return f"Không gọi được mô hình trả lời ({type(exc).__name__}). Thử lại sau ít phút."
+
+
 _BM25_STOPWORDS = frozenset({
     "là", "gì", "và", "của", "có", "các", "những", "nào", "cho", "về",
     "trong", "một", "được", "với", "như", "thế",

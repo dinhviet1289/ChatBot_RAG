@@ -163,6 +163,8 @@ def serialize_sources(docs):
 
     Mỗi phần tử: {doc_id, doc_title, trang, url, snippet, rerank_score};
     snippet giữ nguyên page_content thô (việc làm sạch/escape thuộc ui.theme).
+    Cùng một tài liệu + trang chỉ hiện một lần (nhiều chunk của cùng trang thường
+    lọt vào top-k), giữ snippet của chunk có điểm rerank cao nhất.
     """
     sources = []
     for doc in docs or []:
@@ -177,4 +179,14 @@ def serialize_sources(docs):
             "snippet": getattr(doc, "page_content", "") or "",
             "rerank_score": meta.get("rerank_score"),
         })
-    return sources
+
+    merged = {}
+    for src in sources:
+        best = merged.get((src["doc_id"], src["trang"]))
+        if best is None or _score(src) > _score(best):
+            merged[(src["doc_id"], src["trang"])] = src
+    return list(merged.values())
+
+
+def _score(src):
+    return src["rerank_score"] if src["rerank_score"] is not None else -1.0

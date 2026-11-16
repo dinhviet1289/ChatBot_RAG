@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from rag_engine_web import inspect_retrieval
+from rag_engine_web import describe_llm_error, inspect_retrieval
 from ui.eval_schema import (
     classify_sample_passed,
     evaluate_gate,
@@ -125,7 +125,10 @@ def _inspector_tab(bundle):
                 st.caption(f"#{item['initial_rank']} {item['doc_title']} · trang {item['trang']}")
         if gen:
             ctx = "\n\n".join(it["snippet"] for it in res["selected"])
-            st.markdown(bundle["answer_chain"].invoke({"context": ctx, "question": q}))
+            try:
+                st.markdown(bundle["answer_chain"].invoke({"context": ctx, "question": q}))
+            except Exception as exc:
+                st.error(describe_llm_error(exc))
 
 
 def render_evaluation_view(bundle):

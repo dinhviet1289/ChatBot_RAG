@@ -87,6 +87,47 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertEqual(sources[0]["trang"], "9")
         self.assertEqual(sources[0]["url"], DRIVE_LINKS["cs188_ch01_search"])
 
+    def test_serialize_sources_merges_same_doc_and_page_keeping_best_chunk(self):
+        docs = [
+            FakeDoc("chunk yếu", {"doc_id": "cs188_ch01_search", "doc_title": "CS188",
+                                  "page_start": 3, "page_end": 3, "rerank_score": 0.12}),
+            FakeDoc("chunk mạnh", {"doc_id": "cs188_ch01_search", "doc_title": "CS188",
+                                   "page_start": 3, "page_end": 3, "rerank_score": 0.89}),
+            FakeDoc("trang khác", {"doc_id": "cs188_ch01_search", "doc_title": "CS188",
+                                   "page_start": 23, "page_end": 23, "rerank_score": 0.5}),
+        ]
+        out = serialize_sources(docs)
+        self.assertEqual([s["trang"] for s in out], ["3", "23"])
+        self.assertEqual(out[0]["snippet"], "chunk mạnh")
+        self.assertEqual(out[0]["rerank_score"], 0.89)
+
+    def test_serialize_sources_keeps_first_chunk_when_scores_are_missing(self):
+        docs = [
+            FakeDoc("một", {"doc_id": "elc3008_ch01", "page_start": 2, "page_end": 2}),
+            FakeDoc("hai", {"doc_id": "elc3008_ch01", "page_start": 2, "page_end": 2}),
+        ]
+        out = serialize_sources(docs)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["snippet"], "một")
+        self.assertIsNone(out[0]["rerank_score"])
+
+    def test_describe_llm_error_turns_rate_limit_into_action(self):
+        from rag_engine_web import describe_llm_error
+
+        class RateLimitError(Exception):
+            pass
+
+        msg = describe_llm_error(RateLimitError("upstream body with token abc123"))
+        self.assertIn("hạn mức", msg.lower())
+        self.assertIn("Tạo lại", msg)
+        self.assertNotIn("abc123", msg)
+
+    def test_describe_llm_error_names_other_failures_without_leaking_body(self):
+        from rag_engine_web import describe_llm_error
+        msg = describe_llm_error(ValueError("upstream body with token abc123"))
+        self.assertIn("ValueError", msg)
+        self.assertNotIn("abc123", msg)
+
     def test_inspect_retrieval_computes_rank_deltas_without_mutating_originals(self):
         d1 = FakeDoc("chunk one", {"doc_id": "elc3008_ch01", "start_index": 0, "page_start": 3, "page_end": 3})
         d2 = FakeDoc("chunk two", {"doc_id": "ttnt_tu_minh_phuong", "start_index": 10, "page_start": 38, "page_end": 39})

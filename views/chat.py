@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from rag_engine_web import format_docs
+from rag_engine_web import describe_llm_error, format_docs
 from ui.catalog import serialize_sources, should_show_sources
 from ui.state import (
     SUGGESTED_CARDS,
@@ -70,9 +70,14 @@ def render_chat_view(bundle):
         with st.chat_message("assistant", avatar=AI_AVATAR):
             with st.spinner("Đang tra cứu tài liệu..."):
                 docs = bundle["retriever"].invoke(prompt)
-            answer = st.write_stream(
-                bundle["answer_chain"].stream({"context": format_docs(docs), "question": prompt}))
-            sources = serialize_sources(docs) if should_show_sources(answer) else []
+            try:
+                answer = st.write_stream(bundle["answer_chain"].stream(
+                    {"context": format_docs(docs), "question": prompt}))
+                sources = serialize_sources(docs) if should_show_sources(answer) else []
+            except Exception as exc:
+                answer = describe_llm_error(exc)
+                sources = []
+                st.error(answer)
             if sources:
                 _render_sources(sources)
         append_assistant_turn(state, answer, sources)
