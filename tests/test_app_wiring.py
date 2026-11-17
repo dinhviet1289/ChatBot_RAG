@@ -37,7 +37,7 @@ class TestAppWiring(unittest.TestCase):
         self.assertNotIn("evaluation", src)
         self.assertNotIn("Đánh giá RAG", src)
 
-    def test_chat_page_is_gone_and_documents_is_the_landing_page(self):
+    def test_chat_page_is_gone_and_conversation_is_the_landing_page(self):
         self.assertFalse((ROOT / "views" / "chat.py").exists())
         src = (ROOT / "app.py").read_text(encoding="utf-8")
         self.assertNotIn("render_chat_view", src)
@@ -46,7 +46,7 @@ class TestAppWiring(unittest.TestCase):
         self.assertIn('("documents"', src)
         self.assertIn('("inspector"', src)
         state_src = (ROOT / "ui" / "state.py").read_text(encoding="utf-8")
-        self.assertIn('setdefault("active_page", "documents")', state_src)
+        self.assertIn('setdefault("active_page", "conversation")', state_src)
 
     def test_nav_buttons_each_have_a_concrete_job(self):
         # Nút "Hỏi đáp" thừa: mở cuộc hội thoại đã vào màn hình chat rồi. Nav chỉ

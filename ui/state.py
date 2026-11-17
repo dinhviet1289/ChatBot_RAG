@@ -31,7 +31,7 @@ def init_state(state):
     ids = [c["id"] for c in state["conversations"]]
     if state.get("active_conv_id") not in ids:
         state["active_conv_id"] = ids[0]
-    state.setdefault("active_page", "documents")
+    state.setdefault("active_page", "conversation")
     state.setdefault("pending_prompt", None)
 
 

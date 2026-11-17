@@ -24,11 +24,12 @@ từ repo GitHub này — không cần Colab/ngrok.
 2 nút điều hướng, danh sách cuộc hội thoại **mới nhất nằm trên cùng** — cuộc đang mở
 được tô sáng, thẻ trạng thái hệ thống gồm **Rerank đang bật/tắt**). Ba view trong `views/`:
 
-- `views/documents.py` — Kho tài liệu (trang mặc định, nav): KPI (số học liệu / chunks /
+- `views/documents.py` — Kho tài liệu (nav): KPI (số học liệu / chunks /
   chiều embedding), lọc theo nhóm + tìm kiếm, thẻ từng tài liệu kèm link Drive và
   "Hỏi thử tài liệu này" (mở màn hình hội thoại và chạy luôn câu hỏi mẫu).
-- `views/conversation.py` — Màn hình hội thoại, mở từ sidebar (tạo mới / chọn cuộc
-  hội thoại / hỏi thử tài liệu), không nằm trong nav: ô chat dưới đáy (Enter để gửi),
+- `views/conversation.py` — Màn hình hội thoại (**trang mặc định khi mở app**),
+  mở từ sidebar (tạo mới / chọn cuộc hội thoại / hỏi thử tài liệu), không nằm trong nav:
+  ô chat dưới đáy (Enter để gửi),
   cuộc mới mở ra bằng hero "Bạn muốn ôn tập phần nào?" + **4 thẻ gợi ý lớn lưới 2×2**
   (bấm thẻ chạy luôn, không render lại lần hai), lịch sử + trả lời streaming kèm
   trích dẫn bền vững và nút "Tạo lại câu trả lời"; expander số liệu ms retrieve/rerank,

@@ -66,10 +66,10 @@ class TestChatState(unittest.TestCase):
         self.assertEqual(state["active_page"], "conversation")
         self.assertEqual(state["pending_prompt"], "Giải thích hàm mục tiêu của mạng GAN.")
 
-    def test_init_state_lands_on_documents_page(self):
+    def test_init_state_lands_on_conversation_page(self):
         state = {}
         init_state(state)
-        self.assertEqual(state["active_page"], "documents")
+        self.assertEqual(state["active_page"], "conversation")
 
     def test_suggested_cards_are_four_big_examples_with_prompt(self):
         from ui.state import SUGGESTED_CARDS
