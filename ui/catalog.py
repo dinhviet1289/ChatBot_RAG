@@ -39,6 +39,35 @@ CATEGORY_ORDER = [
 # Nhóm dự phòng cho doc_id lạ chưa khai báo trong CATALOG.
 FALLBACK_CATEGORY = "Tài liệu khác"
 
+# Nhãn ngôn ngữ sạch ở tầng UI (manifest.json của 26 doc mới ghi mặc định "vi").
+_EN_DOC_IDS = frozenset({
+    "cs188_ch01_search",
+    "cs188_ch02_csps",
+    "cs188_ch03_games",
+    "udl_ch15_gans",
+    "udl_ch17_vaes",
+    "build_a_large_language_model_from_scratc",
+    "hands_on_large_language_models_language_",
+    "artificial_intelligence_a_modern_approac",
+    "aima_4e_solutions",
+    "hands_on_machine_learning_with_scikit_le",
+    "introduction_to_machine_learning_with_py",
+    "ml_algorithms_bonaccorso",
+    "ai_and_machine_learning_for_coders_a_pro",
+    "ai_finance_hilpisch",
+    "analytical_skills_for_ai_and_data_scienc",
+    "ai_engineering_for_true_epub_chip_huyen_",
+    "ai_powered_developer_build_software_with",
+    "aib_ch01",
+    "aib_ch02",
+    "aib_ch03",
+})
+
+
+def doc_lang(doc_id):
+    """Nhãn ngôn ngữ hiển thị ở UI ('EN' hoặc 'VI'), không sửa manifest gốc."""
+    return "EN" if doc_id in _EN_DOC_IDS else "VI"
+
 # Câu từ chối chuẩn của prompt (rule 3/10 trong rag_engine_web.TEMPLATE).
 _REFUSAL_MARKER = "không đề cập"
 
@@ -181,7 +210,7 @@ def trang_label(meta):
 def summarize_docstore(docstore_dict):
     """Gộp ``db.docstore._dict`` theo doc_id -> danh sách đã sắp xếp.
 
-    Mỗi phần tử: {doc_id, title, category, url, sample_question, chunk_count,
+    Mỗi phần tử: {doc_id, title, category, lang, url, sample_question, chunk_count,
     page_min, page_max}. doc_id lạ rơi vào nhóm "Tài liệu khác"; chunk thiếu
     page_start/page_end (None) vẫn được đếm, page_min/page_max = None khi
     không có trang nào. Sắp xếp theo CATEGORY_ORDER rồi tới tiêu đề.
@@ -207,6 +236,7 @@ def summarize_docstore(docstore_dict):
             "doc_id": doc_id,
             "title": known["title"] if known else (group["doc_title"] or doc_id),
             "category": known["category"] if known else FALLBACK_CATEGORY,
+            "lang": doc_lang(doc_id),
             "url": known["url"] if known else DRIVE_LINKS.get(doc_id),
             "sample_question": known["sample_question"] if known else None,
             "chunk_count": group["chunk_count"],

@@ -7,7 +7,7 @@ from ui.state import (
     delete_conversation,
     init_state,
 )
-from ui.theme import inject_global_css
+from ui.theme import inject_global_css, render_system_card_html
 from views.conversation import render_conversation_view
 from views.documents import render_documents_view
 from views.inspector import render_inspector_view
@@ -36,10 +36,16 @@ NAV = [("documents", ":material/folder_open:", "Kho tài liệu"),
        ("inspector", ":material/science:", "Kiểm tra truy hồi")]
 
 # Sidebar chạy TRƯỚC dispatch ở cuối file: handler chỉ cần đổi state, lần chạy
-# hiện tại sẽ tự render trang mới. Gọi rerun thủ công ở đây là render gấp đôi.
+# hiện tại sẽ tự render trang mới (không gọi rerun thủ công để tránh nháy đôi).
 with st.sidebar:
-    st.markdown("### ELC3008")
-    st.caption("Trí tuệ nhân tạo trong kinh doanh · DUE")
+    st.markdown(
+        '<div class="rag-brand">'
+        '<span class="rag-brand-kicker">ELC3008 · AI LAB</span>'
+        '<div class="rag-brand-title">Trợ lý RAG DUE</div>'
+        '<div class="rag-brand-sub">Trí tuệ nhân tạo trong kinh doanh · ĐH Kinh tế</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
     if st.button(":material/add: Cuộc hội thoại mới", width="stretch", type="primary"):
         create_new_conversation(state)
         state["active_page"] = "conversation"
@@ -65,17 +71,8 @@ with st.sidebar:
     if st.button("Xóa tất cả", width="stretch"):
         clear_all_conversations(state)
     st.divider()
-    cfg = bundle["config"]
-    with st.container(border=True):
-        st.caption("Hệ thống")
-        provider = cfg.get("rerank_provider", "off")
-        if provider == "off":
-            st.markdown(":material/close: Rerank **TẮT**")
-        else:
-            st.markdown(f":material/check_circle: Rerank **{provider}** · {cfg.get('rerank_model', '')}")
-        st.caption(f"Top-k {cfg.get('top_k')} · retrieve {cfg.get('retrieve_n')}")
-        st.caption(f"LLM {cfg.get('llm_model')} · {len(cfg.get('groq_keys') or [])} key")
-        st.caption(f"Embed {cfg.get('embed_model')}")
+    st.caption("Hệ thống")
+    st.markdown(render_system_card_html(bundle["config"]), unsafe_allow_html=True)
 
 page = state["active_page"]
 if page == "conversation":

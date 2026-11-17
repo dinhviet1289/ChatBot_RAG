@@ -6,42 +6,39 @@ hình hội thoại để cuộc hội thoại mới luôn mở ra bằng ô cha
 import streamlit as st
 
 from rag_engine_web import inspect_retrieval
+from ui.theme import render_retrieval_panel_html
+
+SAMPLE_PROBES = [
+    ("PEAS", "Mô hình PEAS gồm những thành phần nào? Cho ví dụ."),
+    ("DFS vs BFS", "So sánh thuật toán tìm kiếm DFS và BFS trong AI."),
+    ("Minimax", "Thuật toán Minimax và cắt tỉa Alpha-Beta hoạt động ra sao?"),
+]
 
 
 def render_retrieval_panel(res):
-    t1, t2, t3 = st.columns(3)
-    with t1:
-        st.metric("Hybrid retrieve", f"{res['retrieve_ms']:.0f} ms")
-    with t2:
-        st.metric("Cohere rerank", f"{res['rerank_ms']:.0f} ms" if res["rerank_enabled"] else "TẮT")
-    with t3:
-        st.metric("Ứng viên", res["total_candidates"])
-
-    st.markdown("**Top-K sau rerank**")
-    for item in res["selected"]:
-        d = item["rank_delta"]
-        if d > 0:
-            badge = f":material/trending_up: +{d}"
-        elif d < 0:
-            badge = f":material/trending_down: {d}"
-        else:
-            badge = ":material/drag_handle: 0"
-        with st.container(border=True):
-            st.markdown(f"**{item['doc_title']}** · trang {item['trang']} · {badge}")
-            st.caption(item["snippet"][:200])
-    with st.expander(f"Toàn bộ {res['total_candidates']} ứng viên stage-1"):
-        for item in res["candidates"]:
-            st.caption(f"#{item['initial_rank']} {item['doc_title']} · trang {item['trang']}")
+    st.markdown(render_retrieval_panel_html(res), unsafe_allow_html=True)
 
 
 def render_inspector_view(bundle):
-    st.markdown("### Kiểm tra truy hồi")
-    st.caption("Nhập một câu hỏi để xem tầng truy hồi chọn tài liệu nào: thứ tự hybrid, "
-               "rerank kéo hạng nào lên/xuống, mất bao nhiêu ms. Không gọi LLM — không tốn token.")
+    st.markdown("### Kiểm tra truy hồi (Retrieval Lab)")
+    st.caption("Mổ xẻ pipeline 2 tầng: Stage 1 Hybrid (0.3·BM25_df + 0.7·FAISS_384d) "
+               "→ Stage 2 Cross-Encoder Rerank. Không gọi LLM — không tốn token hạn mức.")
+
     with st.container(border=True):
+        st.caption("Thử nhanh mẫu chuẩn")
+        pcols = st.columns(len(SAMPLE_PROBES))
+        auto_run = False
+        for col, (label, sample_q) in zip(pcols, SAMPLE_PROBES):
+            with col:
+                if st.button(f":material/bolt: {label}", key=f"probe_{label}", width="stretch"):
+                    st.session_state["dbg_q"] = sample_q
+                    auto_run = True
+
         dq = st.text_input("Câu hỏi kiểm tra", key="dbg_q",
                            placeholder="Nhập câu hỏi để xem tầng truy hồi chọn tài liệu nào...")
         dq = (dq or "").strip()
-        if st.button("Chạy kiểm tra", key="dbg_run") and dq:
+        clicked = st.button(":material/science: Chạy kiểm tra", key="dbg_run", type="primary")
+        if (clicked or auto_run) and dq:
             with st.spinner("Đang truy hồi tài liệu..."):
-                render_retrieval_panel(inspect_retrieval(bundle, dq))
+                res = inspect_retrieval(bundle, dq)
+            render_retrieval_panel(res)

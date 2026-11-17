@@ -75,10 +75,20 @@ def append_user_turn(state, prompt):
     conv["messages"].append({"role": "user", "content": prompt})
 
 
-def append_assistant_turn(state, content, sources, latency_s=0.0):
+def append_assistant_turn(state, content, sources, latency_s=0.0,
+                          telemetry=None, retrieval=None):
     conv = get_active_conversation(state)
-    conv["messages"].append({"role": "assistant", "content": content,
-                             "sources": list(sources or []), "latency_s": latency_s})
+    msg = {
+        "role": "assistant",
+        "content": content,
+        "sources": list(sources or []),
+        "latency_s": latency_s,
+    }
+    if telemetry:
+        msg["telemetry"] = dict(telemetry)
+    if retrieval:
+        msg["retrieval"] = dict(retrieval)
+    conv["messages"].append(msg)
 
 
 def prepare_regenerate(state):

@@ -89,6 +89,23 @@ class TestChatState(unittest.TestCase):
                          [third_id, second_id, first_id])
         self.assertEqual(state["active_conv_id"], third_id)
 
+    def test_append_assistant_turn_persists_optional_telemetry_and_retrieval(self):
+        state = {}
+        init_state(state)
+        append_user_turn(state, "PEAS là gì?")
+        tel = {"latency_s": 1.2, "model": "qwen/qwen3.8-27b"}
+        ret = {"retrieve_ms": 30.0, "total_candidates": 20, "selected": []}
+        append_assistant_turn(state, "Trả lời", [], latency_s=1.2,
+                              telemetry=tel, retrieval=ret)
+        msg = get_active_conversation(state)["messages"][-1]
+        self.assertEqual(msg["telemetry"]["model"], "qwen/qwen3.8-27b")
+        self.assertEqual(msg["retrieval"]["total_candidates"], 20)
+
+        append_assistant_turn(state, "Cũ", [])
+        legacy_msg = get_active_conversation(state)["messages"][-1]
+        self.assertNotIn("telemetry", legacy_msg)
+        self.assertNotIn("retrieval", legacy_msg)
+
 
 if __name__ == "__main__":
     unittest.main()

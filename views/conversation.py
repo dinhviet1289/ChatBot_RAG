@@ -1,8 +1,9 @@
 """Màn hình hội thoại — mở từ sidebar (nút tạo mới, chọn cuộc hội thoại, hoặc
 "Hỏi thử tài liệu này" bên Kho tài liệu), không nằm trong nav. Ô chat dưới đáy,
-Enter để gửi; mỗi lượt được lưu kèm trích dẫn và expander số liệu truy hồi.
+Enter để gửi; mỗi lượt được lưu kèm telemetry, trích dẫn và chi tiết truy hồi.
 """
 
+import html
 import time
 
 import streamlit as st
@@ -14,7 +15,7 @@ from rag_engine_web import (
     rotation_pairs,
     stream_answer,
 )
-from ui.catalog import should_show_sources, sources_from_inspection
+from ui.catalog import CATALOG, should_show_sources, sources_from_inspection
 from ui.state import (
     SUGGESTED_CARDS,
     append_assistant_turn,
@@ -22,11 +23,54 @@ from ui.state import (
     get_active_conversation,
     prepare_regenerate,
 )
-from ui.theme import render_citation_box_html
+from ui.theme import render_citation_box_html, render_turn_telemetry_html
 from views.inspector import render_retrieval_panel
 
 USER_AVATAR = ":material/person:"
 AI_AVATAR = ":material/school:"
+
+
+def _compact_retrieval(res):
+    """Keep retrieval metrics + Top-K snippets for turn history without bloating RAM."""
+    if not res:
+        return None
+    selected = []
+    for item in res.get("selected") or []:
+        compact = dict(item)
+        compact["snippet"] = (item.get("snippet") or "")[:260]
+        selected.append(compact)
+    candidates = [
+        {k: c.get(k) for k in ("doc_id", "doc_title", "trang", "url",
+                               "initial_rank", "final_rank", "rank_delta", "rerank_score")}
+        for c in (res.get("candidates") or [])
+    ]
+    return {
+        "question": res.get("question"),
+        "retrieve_ms": res.get("retrieve_ms"),
+        "rerank_ms": res.get("rerank_ms"),
+        "rerank_enabled": res.get("rerank_enabled"),
+        "total_candidates": res.get("total_candidates"),
+        "candidates": candidates,
+        "selected": selected,
+    }
+
+
+def _build_telemetry(cfg, res, served, keys, latency_s):
+    key_slot = ""
+    if served and len(keys) > 1 and served.get("key") in keys:
+        key_slot = f"{keys.index(served['key']) + 1}/{len(keys)}"
+    return {
+        "latency_s": round(float(latency_s), 2),
+        "retrieve_ms": res.get("retrieve_ms"),
+        "rerank_ms": res.get("rerank_ms"),
+        "rerank_enabled": bool(res.get("rerank_enabled")),
+        "selected_count": len(res.get("selected") or []),
+        "total_candidates": int(res.get("total_candidates") or 0),
+        "model": (served or {}).get("model") or cfg.get("llm_model") or "",
+        "key_slot": key_slot,
+        "fell_back": bool((served or {}).get("fell_back")),
+        "configured_model": cfg.get("llm_model") or "",
+    }
 
 
 def _render_history(conv):
@@ -34,23 +78,55 @@ def _render_history(conv):
         avatar = USER_AVATAR if msg["role"] == "user" else AI_AVATAR
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
-            if msg["role"] == "assistant" and msg.get("sources"):
-                st.markdown(render_citation_box_html(msg["sources"]), unsafe_allow_html=True)
+            if msg["role"] == "assistant":
+                if msg.get("telemetry"):
+                    st.markdown(render_turn_telemetry_html(msg["telemetry"]),
+                                unsafe_allow_html=True)
+                if msg.get("sources"):
+                    st.markdown(render_citation_box_html(msg["sources"]),
+                                unsafe_allow_html=True)
+                if msg.get("retrieval"):
+                    with st.expander("Chi tiết truy hồi của lượt này"):
+                        render_retrieval_panel(msg["retrieval"])
 
 
-def _render_empty_state(state):
+def _render_empty_state(state, bundle=None):
+    cfg = (bundle or {}).get("config") or {}
+    db = (bundle or {}).get("db")
+    chunk_count = len(db.docstore._dict) if db is not None else 15510
+    doc_count = len(CATALOG)
+    provider = str(cfg.get("rerank_provider") or "off").strip().lower()
+    rerank_pill = "Cohere Rerank" if provider == "cohere" else (
+        "Local Rerank" if provider == "local" else "Hybrid Stage-1"
+    )
     st.markdown(
-        "<div style='text-align:center;padding:2.5rem 0 1.5rem;'>"
-        "<div style='font-size:2rem;font-weight:700;letter-spacing:-0.02em;'>Bạn muốn ôn tập phần nào?</div>"
-        "<div style='color:var(--muted);margin-top:6px;'>Chọn một gợi ý hoặc nhập câu hỏi bên dưới.</div>"
-        "</div>", unsafe_allow_html=True)
+        f'<div class="rag-hero">'
+        f'<span class="rag-hero-badge">ELC3008 KNOWLEDGE OBSERVATORY</span>'
+        f'<div class="rag-hero-title">Bạn muốn ôn tập phần nào?</div>'
+        f'<div class="rag-hero-sub">Chọn một chủ đề mẫu hoặc nhập câu hỏi bên dưới — '
+        f'mỗi câu trả lời đều kèm nguồn trang &amp; số liệu truy hồi.</div>'
+        f'<div class="rag-hero-pills">'
+        f'<span class="rag-hero-pill">{doc_count} Học liệu</span>'
+        f'<span class="rag-hero-pill">{chunk_count:,} Chunks</span>'
+        f'<span class="rag-hero-pill">BM25 + FAISS 384d</span>'
+        f'<span class="rag-hero-pill">{html.escape(rerank_pill)}</span>'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
     cols = st.columns(2)
     for i, card in enumerate(SUGGESTED_CARDS):
         with cols[i % 2]:
             with st.container(border=True):
-                st.markdown(f":material/{card['icon']}: **{card['title']}**")
+                st.markdown(
+                    f'<div class="rag-sug-head">'
+                    f'<span><strong>{html.escape(card["title"])}</strong></span>'
+                    f'<span class="rag-sug-idx">0{i + 1}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
                 st.caption(card["subtitle"])
-                if st.button(card["prompt"], key=f"sug_{i}", width="stretch"):
+                if st.button(f":material/{card['icon']}: {card['prompt']}",
+                             key=f"sug_{i}", width="stretch"):
                     # Không rerun: pending_prompt được tiêu ngay trong cùng lần chạy.
                     state["pending_prompt"] = card["prompt"]
 
@@ -61,8 +137,8 @@ def render_conversation_view(bundle):
 
     if conv["messages"]:
         st.markdown(f"### {conv['title']}")
-        st.caption("Enter để gửi câu hỏi. Câu trả lời kèm trích dẫn được lưu vào cuộc hội thoại; "
-                   "số liệu vì sao tài liệu được chọn nằm trong mục mở rộng dưới mỗi lượt.")
+        st.caption("Enter để gửi câu hỏi. Mỗi lượt lưu kèm độ trễ truy hồi, nguồn trang "
+                   "và bảng đối chiếu Stage-1 / Stage-2.")
 
     _render_history(conv)
 
@@ -75,7 +151,7 @@ def render_conversation_view(bundle):
                 st.rerun()
 
     if not conv["messages"] and not state.get("pending_prompt"):
-        _render_empty_state(state)
+        _render_empty_state(state, bundle)
 
     prompt = st.chat_input("Nhập câu hỏi của bạn...")
     if state.get("pending_prompt"):
@@ -89,13 +165,21 @@ def render_conversation_view(bundle):
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
-    with st.spinner("Đang truy hồi tài liệu..."):
-        res = inspect_retrieval(bundle, prompt)
-
-    ctx = "\n\n".join(it["snippet"] for it in res["selected"])
     keys = bundle["config"]["groq_keys"]
     served = {}
     with st.chat_message("assistant", avatar=AI_AVATAR):
+        stage_slot = st.empty()
+        stage_slot.markdown(
+            '<div class="rag-stage-live">'
+            '<span class="rag-stage-dot"></span>'
+            '<span>Đang truy hồi Hybrid BM25 + FAISS &amp; chấm điểm Rerank...</span>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        res = inspect_retrieval(bundle, prompt)
+        stage_slot.empty()
+
+        ctx = "\n\n".join(it["snippet"] for it in res["selected"])
         try:
             answer = st.write_stream(stream_answer(
                 bundle["make_answer_chain"],
@@ -104,23 +188,31 @@ def render_conversation_view(bundle):
                 report=lambda model, key, fell_back: served.update(
                     model=model, key=key, fell_back=fell_back)))
             sources = sources_from_inspection(res["selected"]) if should_show_sources(answer) else []
-            if served:
-                where = (f" · key {keys.index(served['key']) + 1}/{len(keys)}"
-                         if len(keys) > 1 else "")
-                note = (f" :material/swap_horiz: `{bundle['config']['llm_model']}` vừa cạn hạn mức, "
-                        f"câu này trả lời bằng model khác." if served.get("fell_back") else "")
-                st.caption(f"LLM `{served['model']}`{where}.{note}")
+            total_s = time.perf_counter() - started
+            telemetry = _build_telemetry(bundle["config"], res, served, keys, total_s)
+            st.markdown(render_turn_telemetry_html(telemetry), unsafe_allow_html=True)
             if sources:
                 st.markdown(render_citation_box_html(sources), unsafe_allow_html=True)
+            with st.expander("Chi tiết truy hồi của lượt này"):
+                render_retrieval_panel(res)
+            append_assistant_turn(
+                state, answer, sources,
+                latency_s=total_s,
+                telemetry=telemetry,
+                retrieval=_compact_retrieval(res),
+            )
         except Exception as exc:
             answer = describe_llm_error(exc)
             sources = []
+            total_s = time.perf_counter() - started
             st.error(answer)
+            append_assistant_turn(
+                state, answer, sources,
+                latency_s=total_s,
+                retrieval=_compact_retrieval(res),
+            )
             if st.button(":material/refresh: Thử lại", key="retry_after_error"):
                 again = prepare_regenerate(state)
                 if again:
                     state["pending_prompt"] = again
                     st.rerun()
-    append_assistant_turn(state, answer, sources, latency_s=time.perf_counter() - started)
-    with st.expander("Chi tiết truy hồi của lượt này"):
-        render_retrieval_panel(res)

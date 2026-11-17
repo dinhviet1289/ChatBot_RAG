@@ -4,6 +4,7 @@ from ui.catalog import (
     CATALOG,
     CATEGORY_ORDER,
     DRIVE_LINKS,
+    doc_lang,
     serialize_sources,
     should_show_sources,
     sources_from_inspection,
@@ -86,9 +87,19 @@ class TestCatalogAndEngine(unittest.TestCase):
         rows = summarize_docstore(store)
         by_id = {r["doc_id"]: r for r in rows}
         self.assertEqual(by_id["elc3008_ch01"]["chunk_count"], 2)
+        self.assertEqual(by_id["elc3008_ch01"]["lang"], "VI")
         self.assertEqual((by_id["elc3008_ch01"]["page_min"], by_id["elc3008_ch01"]["page_max"]), (2, 9))
         self.assertEqual(by_id["mystery_doc"]["category"], "Tài liệu khác")
         self.assertIsNone(by_id["mystery_doc"]["page_min"])
+
+    def test_doc_lang_classifies_all_44_catalog_entries(self):
+        self.assertEqual(doc_lang("aib_ch01"), "EN")
+        self.assertEqual(doc_lang("artificial_intelligence_a_modern_approac"), "EN")
+        self.assertEqual(doc_lang("l01_gioi_thieu"), "VI")
+        self.assertEqual(doc_lang("ttnt_tu_minh_phuong"), "VI")
+        langs = [doc_lang(doc_id) for doc_id in CATALOG]
+        self.assertEqual(langs.count("EN"), 20)
+        self.assertEqual(langs.count("VI"), 24)
 
     def test_should_show_sources_is_case_insensitive_on_refusal(self):
         self.assertFalse(should_show_sources("Tài liệu môn học KHÔNG ĐỀ CẬP nội dung này."))
