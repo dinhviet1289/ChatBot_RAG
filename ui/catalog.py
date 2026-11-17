@@ -275,7 +275,7 @@ def serialize_sources(docs):
         known = CATALOG.get(doc_id) or {}
         sources.append({
             "doc_id": doc_id,
-            "doc_title": meta.get("doc_title") or known.get("title") or doc_id,
+            "doc_title": known.get("title") or meta.get("doc_title") or doc_id,
             "trang": trang_label(meta),
             "url": DRIVE_LINKS.get(doc_id),
             "snippet": getattr(doc, "page_content", "") or "",
@@ -309,3 +309,16 @@ def sources_from_inspection(selected):
         if best is None or _score(src) > _score(best):
             merged[key] = src
     return list(merged.values())
+
+
+def format_selected_context(selected):
+    """Định dạng các mục selected kèm nhãn [Tên tài liệu (doc_id), trang X-Y] khớp Rule 8."""
+    parts = []
+    for item in selected or []:
+        doc_id = item.get("doc_id") or "Unknown"
+        known = CATALOG.get(doc_id) or {}
+        name = known.get("title") or item.get("doc_title") or doc_id
+        trang = str(item.get("trang") or "?").strip() or "?"
+        snippet = item.get("snippet") or ""
+        parts.append(f"[{name} ({doc_id}), trang {trang}]\n{snippet}")
+    return "\n\n".join(parts)

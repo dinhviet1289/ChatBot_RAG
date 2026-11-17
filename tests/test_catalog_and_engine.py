@@ -224,6 +224,68 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertEqual(top["rank_delta"], 1)
         self.assertNotIn("rerank_score", d2.metadata)
 
+    def test_select_query_terms_isolates_rare_english_acronym_in_bilingual_corpus(self):
+        from rag_engine_web import select_query_terms
+
+        doc_freq = {
+            "mô": 12918, "hình": 1622, "peas": 14, "gồm": 307,
+            "thành": 700, "phần": 668, "ví": 954, "dụ": 949,
+            "trí": 820, "tuệ": 810, "nhân": 850, "tạo": 910,
+            "dfs": 37, "bfs": 14, "llm": 1435, "kiến": 363, "trúc": 141,
+        }
+        self.assertEqual(
+            select_query_terms("Mô hình PEAS gồm những thành phần nào? Cho ví dụ.", doc_freq, 15510),
+            ["peas"],
+        )
+        self.assertEqual(
+            select_query_terms("PEAS trong trí tuệ nhân tạo là gì?", doc_freq, 15510),
+            ["peas"],
+        )
+        self.assertEqual(
+            select_query_terms("So sánh thuật toán DFS và BFS.", doc_freq, 15510),
+            ["dfs", "bfs"],
+        )
+        self.assertEqual(
+            select_query_terms("LLM là gì? Kiến trúc gồm những thành phần nào?", doc_freq, 15510),
+            ["llm", "kiến", "trúc"],
+        )
+
+    def test_catalog_clean_title_overrides_noisy_manifest_doc_title(self):
+        doc = FakeDoc(
+            "PEAS exercise",
+            {
+                "doc_id": "aima_4e_solutions",
+                "doc_title": "Note that for many of the questions in this chapter",
+                "page_start": 24,
+                "page_end": 24,
+            },
+        )
+        sources = serialize_sources([doc])
+        self.assertEqual(sources[0]["doc_title"], CATALOG["aima_4e_solutions"]["title"])
+
+        bundle = {
+            "ensemble": types.SimpleNamespace(invoke=lambda q: [doc]),
+            "reranker": None,
+            "config": {"top_k": 1, "retrieve_n": 20, "rerank_provider": "off"},
+        }
+        res = inspect_retrieval(bundle, "PEAS")
+        self.assertEqual(res["selected"][0]["doc_title"], CATALOG["aima_4e_solutions"]["title"])
+
+    def test_format_selected_context_includes_bracketed_citation_headers(self):
+        from ui.catalog import format_selected_context
+
+        out = format_selected_context([{
+            "doc_id": "artificial_intelligence_a_modern_approac",
+            "doc_title": "Artificial Intelligence",
+            "trang": "60",
+            "snippet": "PEAS description",
+        }])
+        self.assertEqual(
+            out,
+            "[Artificial Intelligence: A Modern Approach (Russell & Norvig) "
+            "(artificial_intelligence_a_modern_approac), trang 60]\nPEAS description",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

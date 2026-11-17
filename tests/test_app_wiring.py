@@ -181,6 +181,12 @@ class TestAppWiring(unittest.TestCase):
             self.assertIsNotNone(match, f"{rel} no longer names its default model")
             self.assertEqual(match.group(1), rag_engine_web.LLM_MODEL, f"{rel} documents a stale default")
 
+    def test_empty_state_slot_is_cleared_before_rendering_first_turn(self):
+        src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
+        self.assertIn("empty_slot = st.empty()", src)
+        self.assertIn("empty_slot.empty()", src)
+        self.assertIn("format_selected_context", src)
+
 
 if __name__ == "__main__":
     unittest.main()

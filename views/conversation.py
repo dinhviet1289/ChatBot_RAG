@@ -15,7 +15,12 @@ from rag_engine_web import (
     rotation_pairs,
     stream_answer,
 )
-from ui.catalog import CATALOG, should_show_sources, sources_from_inspection
+from ui.catalog import (
+    CATALOG,
+    format_selected_context,
+    should_show_sources,
+    sources_from_inspection,
+)
 from ui.state import (
     SUGGESTED_CARDS,
     append_assistant_turn,
@@ -135,10 +140,12 @@ def render_conversation_view(bundle):
     state = st.session_state
     conv = get_active_conversation(state)
 
+    header_slot = st.empty()
     if conv["messages"]:
-        st.markdown(f"### {conv['title']}")
-        st.caption("Enter để gửi câu hỏi. Mỗi lượt lưu kèm độ trễ truy hồi, nguồn trang "
-                   "và bảng đối chiếu Stage-1 / Stage-2.")
+        with header_slot.container():
+            st.markdown(f"### {conv['title']}")
+            st.caption("Enter để gửi câu hỏi. Mỗi lượt lưu kèm độ trễ truy hồi, nguồn trang "
+                       "và bảng đối chiếu Stage-1 / Stage-2.")
 
     _render_history(conv)
 
@@ -150,8 +157,10 @@ def render_conversation_view(bundle):
                 # Lịch sử đã render cả lượt cũ; phải rerun để vẽ lại sau khi pop.
                 st.rerun()
 
+    empty_slot = st.empty()
     if not conv["messages"] and not state.get("pending_prompt"):
-        _render_empty_state(state, bundle)
+        with empty_slot.container():
+            _render_empty_state(state, bundle)
 
     prompt = st.chat_input("Nhập câu hỏi của bạn...")
     if state.get("pending_prompt"):
@@ -160,8 +169,15 @@ def render_conversation_view(bundle):
     if not prompt:
         return
 
+    empty_slot.empty()
+    was_empty = not conv["messages"]
     started = time.perf_counter()
     append_user_turn(state, prompt)
+    if was_empty:
+        with header_slot.container():
+            st.markdown(f"### {conv['title']}")
+            st.caption("Enter để gửi câu hỏi. Mỗi lượt lưu kèm độ trễ truy hồi, nguồn trang "
+                       "và bảng đối chiếu Stage-1 / Stage-2.")
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
@@ -179,7 +195,7 @@ def render_conversation_view(bundle):
         res = inspect_retrieval(bundle, prompt)
         stage_slot.empty()
 
-        ctx = "\n\n".join(it["snippet"] for it in res["selected"])
+        ctx = format_selected_context(res["selected"])
         try:
             answer = st.write_stream(stream_answer(
                 bundle["make_answer_chain"],

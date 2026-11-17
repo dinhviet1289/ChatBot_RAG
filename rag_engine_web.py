@@ -217,19 +217,37 @@ def build_doc_freq(tokens_per_doc):
     return df
 
 
+_BM25_QUERY_STOPWORDS = frozenset({
+    "mô", "hình", "gồm", "thành", "phần", "ví", "dụ",
+    "hãy", "nêu", "biết", "giải", "thích", "sánh", "so", "biệt",
+    "trình", "bày", "hoạt", "động", "ra", "sao", "dưới", "dạng",
+    "khái", "niệm", "định", "nghĩa", "vai", "trò", "chi", "tiết",
+    "thuật", "toán", "bài",
+})
+
+
 def select_query_terms(query, doc_freq, total_docs, max_df_ratio=BM25_MAX_DF_RATIO):
     """Chỉ giữ các từ khoá đặc hiệu khi truy vấn BM25 (không dùng khi index chunk).
 
-    Điểm BM25 là TỔNG idf của các từ khớp, nên vài âm tiết Việt thông dụng
-    ("mô", "hình", "thành", "phần", "ví", "dụ") cộng lại vượt một từ hiếm nhưng
-    quyết định ("peas"): chunk chứa PEAS rớt từ hạng 1 xuống 426 và không vào được
-    danh sách ứng viên, tầng rerank mất cơ hội sửa. Từ xuất hiện trong hơn
-    max_df_ratio số chunk bị bỏ; nếu câu hỏi chỉ toàn từ thông dụng thì giữ nguyên.
+    Trên kho học liệu song ngữ Việt–Anh (44 tài liệu), các từ đệm đặt câu tiếng Việt
+    ("gồm", "thành", "phần", "ví", "dụ"...) chỉ xuất hiện ở nửa tiếng Việt nên tỷ lệ
+    df toàn cục < 10%, nhưng cộng 4–5 âm tiết lại vẫn đè bẹp từ khoá hiếm quyết định
+    ("peas" chỉ có 14/15.510 chunk tiếng Anh). Ta lọc từ đệm câu hỏi trước, sau đó nếu
+    câu chứa từ neo thật hiếm (df <= 0.5% kho) thì loại các từ đi kèm phổ biến gấp >8 lần.
     """
     tokens = tokenize_bm25(query)
     limit = max_df_ratio * total_docs
     specific = [term for term in tokens if doc_freq.get(term, 0) <= limit]
-    return specific or tokens
+    pool = [term for term in specific if term not in _BM25_QUERY_STOPWORDS] or specific or tokens
+    present = [doc_freq[term] for term in pool if doc_freq.get(term, 0) > 0]
+    if present and total_docs > 0:
+        min_df = min(present)
+        if min_df <= max(2, int(0.005 * total_docs)):
+            cap = max(min_df * 8, int(0.015 * total_docs))
+            anchored = [term for term in pool if doc_freq.get(term, 0) <= cap]
+            if anchored:
+                return anchored
+    return pool
 
 
 def _dedup(docs):
@@ -397,7 +415,7 @@ def inspect_retrieval(bundle, question):
         known = CATALOG.get(doc_id) or {}
         items.append({
             "doc_id": doc_id,
-            "doc_title": meta.get("doc_title") or known.get("title") or doc_id,
+            "doc_title": known.get("title") or meta.get("doc_title") or doc_id,
             "trang": trang_label(meta),
             "url": DRIVE_LINKS.get(doc_id),
             "snippet": getattr(doc, "page_content", "") or "",
