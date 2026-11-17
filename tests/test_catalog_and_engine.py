@@ -58,12 +58,24 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertEqual(select_query_terms("", df, 3), [])
         self.assertEqual(select_query_terms("peas", {}, 0), ["peas"])
 
-    def test_catalog_covers_all_18_indexed_docs_and_13_links(self):
-        self.assertEqual(len(CATALOG), 18)
+    def test_catalog_covers_all_44_indexed_docs_and_13_links(self):
+        self.assertEqual(len(CATALOG), 44)
         self.assertEqual(len(DRIVE_LINKS), 13)
+        self.assertLessEqual(set(DRIVE_LINKS), set(CATALOG))
         for meta in CATALOG.values():
             self.assertIn(meta["category"], CATEGORY_ORDER)
             self.assertTrue(meta["sample_question"])
+
+    def test_catalog_doc_ids_match_the_index_manifest_exactly(self):
+        import json
+        from pathlib import Path
+
+        manifest_path = (Path(__file__).resolve().parents[1]
+                         / "data" / "faiss_index_huggingface" / "manifest.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(manifest), 44)
+        self.assertEqual(sum(m["chunk_count"] for m in manifest), 15510)
+        self.assertEqual(set(CATALOG), {m["doc_id"] for m in manifest})
 
     def test_summarize_docstore_handles_known_unknown_and_missing_pages(self):
         store = {

@@ -56,14 +56,18 @@ Repo cần index đã build sẵn. Tải từ Google Drive của m:
 /content/drive/MyDrive/ChatboxRAG/faiss_index_huggingface/
 ```
 
-Copy **2 file** `index.faiss` và `index.pkl` vào thư mục:
+Copy **3 file** `index.faiss`, `index.pkl` và `manifest.json` vào thư mục:
 
 ```
 data/faiss_index_huggingface/index.faiss
 data/faiss_index_huggingface/index.pkl
+data/faiss_index_huggingface/manifest.json
 ```
 
-> Index này nhỏ (vài MB) nên commit thẳng lên GitHub được. Nếu >100MB thì dùng Git LFS.
+> Bộ index đầy đủ **44 tài liệu / 15.510 chunks** (~45MB) nên commit thẳng lên GitHub
+> được (<100MB). `manifest.json` liệt kê `doc_id` + số chunks; test
+> `test_catalog_doc_ids_match_the_index_manifest_exactly` đối chiếu khớp đúng với
+> `ui/catalog.py`. Nếu >100MB thì dùng Git LFS.
 
 ## 2. Đẩy lên GitHub
 

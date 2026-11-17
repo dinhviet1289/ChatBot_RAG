@@ -1,9 +1,10 @@
-"""Danh mục 18 học liệu đã nạp chỉ mục FAISS của ELC3008.
+"""Danh mục 44 học liệu đã nạp chỉ mục FAISS của ELC3008.
 
 Module thuần (chỉ stdlib), không import Streamlit/LangChain để unit test chạy
-được trong môi trường tối giản. Tiêu đề khớp đúng ``doc_title`` trong
-``data/faiss_index_huggingface/index.pkl``; 13 tài liệu có link Google Drive
-(giữ nguyên từ ``app.py``), 5 giáo trình tiếng Việt còn lại chỉ có trong chỉ mục.
+được trong môi trường tối giản. doc_id khớp đúng ``manifest.json`` đi kèm
+``data/faiss_index_huggingface`` (44 tài liệu, 15.510 chunks); 13 tài liệu có
+link Google Drive (giữ nguyên từ ``app.py``), 31 tài liệu còn lại chỉ có trong
+chỉ mục. Tiêu đề hiển thị đã làm sạch từ tiêu đề thô trong chỉ mục.
 """
 
 # 13 link Google Drive giữ nguyên văn từ app.py (không sửa URL).
@@ -23,12 +24,15 @@ DRIVE_LINKS = {
     "hands_on_large_language_models_language_": "https://drive.google.com/file/d/1rvB05bbu9rsoThY7ps3ksZ1RHQ4tk7VL/view",
 }
 
-# 5 nhóm học phần theo đúng thứ tự hiển thị của trang "Kho tài liệu".
+# 8 nhóm học phần theo đúng thứ tự hiển thị của trang "Kho tài liệu".
 CATEGORY_ORDER = [
     "Bài giảng ELC3008",
     "UC Berkeley CS188",
     "Deep Learning (UDL)",
     "Large Language Models",
+    "Sách AI & ML (English)",
+    "Bài giảng Học máy (Tiếng Việt)",
+    "AI trong kinh doanh",
     "Giáo trình Tiếng Việt & Cơ sở ML",
 ]
 
@@ -38,7 +42,7 @@ FALLBACK_CATEGORY = "Tài liệu khác"
 # Câu từ chối chuẩn của prompt (rule 3/10 trong rag_engine_web.TEMPLATE).
 _REFUSAL_MARKER = "không đề cập"
 
-# (doc_id, title, category, sample_question) — đủ 18 doc_id trong chỉ mục.
+# (doc_id, title, category, sample_question) — đủ 44 doc_id trong chỉ mục.
 _ENTRIES = [
     ("elc3008_ch01", "Slide ELC3008 — Chương 1", "Bài giảng ELC3008",
      "Chương 1 trình bày những khái niệm mở đầu nào về trí tuệ nhân tạo trong kinh doanh?"),
@@ -78,6 +82,74 @@ _ENTRIES = [
      "Tài liệu đọc IT3190 bổ trợ những kiến thức nào về trí tuệ nhân tạo?"),
     ("ml_co_ban", "Machine Learning cơ bản", "Giáo trình Tiếng Việt & Cơ sở ML",
      "Phân biệt học có giám sát và học không giám sát trong machine learning cơ bản."),
+
+    # --- 26 học liệu mới (benchmark đầy đủ 44 file) ---
+    # Sách AI & ML tiếng Anh (8).
+    ("artificial_intelligence_a_modern_approac",
+     "Artificial Intelligence: A Modern Approach (Russell & Norvig)", "Sách AI & ML (English)",
+     "Tác tử hợp lý (rational agent) và các loại môi trường được định nghĩa thế nào trong AIMA?"),
+    ("aima_4e_solutions", "AIMA 4e — Lời giải bài tập (Russell & Norvig)", "Sách AI & ML (English)",
+     "Hướng dẫn giải bài tập về tác tử thông minh và môi trường trong AIMA 4e?"),
+    ("hands_on_machine_learning_with_scikit_le",
+     "Hands-On Machine Learning with Scikit-Learn, Keras & TensorFlow", "Sách AI & ML (English)",
+     "Quy trình huấn luyện mô hình với Scikit-Learn và pipeline tiền xử lý dữ liệu?"),
+    ("introduction_to_machine_learning_with_py",
+     "Introduction to Machine Learning with Python", "Sách AI & ML (English)",
+     "Các thuật toán học có giám sát cơ bản được giới thiệu thế nào trong Python?"),
+    ("ml_algorithms_bonaccorso", "Machine Learning Algorithms — Bonaccorso", "Sách AI & ML (English)",
+     "Các thuật toán học máy chính được phân loại và so sánh ra sao?"),
+    ("ai_and_machine_learning_for_coders_a_pro",
+     "AI and Machine Learning for Coders", "Sách AI & ML (English)",
+     "Quy trình xây dựng mô hình học máy dành cho lập trình viên gồm những bước nào?"),
+    ("ai_finance_hilpisch", "AI in Finance — Yves Hilpisch", "Sách AI & ML (English)",
+     "Học máy được ứng dụng trong tài chính (định giá, quản trị rủi ro) như thế nào?"),
+    ("analytical_skills_for_ai_and_data_scienc",
+     "Analytical Skills for AI and Data Science", "Sách AI & ML (English)",
+     "Kỹ năng phân tích cần thiết cho khoa học dữ liệu và AI gồm những gì?"),
+
+    # Bài giảng Học máy tiếng Việt L01–L11 (11).
+    ("l01_gioi_thieu", "Học máy — Bài 1: Giới thiệu", "Bài giảng Học máy (Tiếng Việt)",
+     "Phân biệt học máy (machine learning) và khai phá dữ liệu (data mining) thế nào?"),
+    ("l02_tien_xu_ly", "Học máy — Bài 2: Tiền xử lý dữ liệu", "Bài giảng Học máy (Tiếng Việt)",
+     "Các bước tiền xử lý dữ liệu trước khi huấn luyện mô hình học máy?"),
+    ("l03_danh_gia", "Học máy — Bài 3: Đánh giá mô hình", "Bài giảng Học máy (Tiếng Việt)",
+     "Đánh giá hiệu năng mô hình học máy bằng thực nghiệm được thực hiện ra sao?"),
+    ("l04_hoi_quy", "Học máy — Bài 4: Hồi quy", "Bài giảng Học máy (Tiếng Việt)",
+     "Bài toán hồi quy (regression) và các độ đo đánh giá mô hình hồi quy?"),
+    ("l05_phan_lop_knn", "Học máy — Bài 5: Phân lớp & KNN", "Bài giảng Học máy (Tiếng Việt)",
+     "Thuật toán KNN và bài toán phân lớp (classification) được trình bày thế nào?"),
+    ("l06_xac_suat", "Học máy — Bài 6: Phương pháp xác suất", "Bài giảng Học máy (Tiếng Việt)",
+     "Phương pháp thống kê xác suất cho bài toán phân loại (Naive Bayes) hoạt động ra sao?"),
+    ("l07_cay_quyet_dinh", "Học máy — Bài 7: Cây quyết định", "Bài giảng Học máy (Tiếng Việt)",
+     "Cây quyết định chọn thuộc tính phân tách bằng độ lợi thông tin như thế nào?"),
+    ("l08_mang_noron", "Học máy — Bài 8: Mạng nơ-ron", "Bài giảng Học máy (Tiếng Việt)",
+     "Mạng nơ-ron nhân tạo (ANN) và thuật toán lan truyền ngược hoạt động ra sao?"),
+    ("l09_svm", "Học máy — Bài 9: SVM", "Bài giảng Học máy (Tiếng Việt)",
+     "Máy vectơ hỗ trợ (SVM) tìm siêu phẳng phân cách tối ưu như thế nào?"),
+    ("l10_phan_cum", "Học máy — Bài 10: Phân cụm", "Bài giảng Học máy (Tiếng Việt)",
+     "Các phương pháp phân cụm (K-means) và cách đánh giá chất lượng cụm?"),
+    ("l11_luat_ket_hop", "Học máy — Bài 11: Luật kết hợp", "Bài giảng Học máy (Tiếng Việt)",
+     "Khai phá luật kết hợp (association rule) và thuật toán Apriori hoạt động thế nào?"),
+
+    # AI trong kinh doanh — bộ AIB (3).
+    ("aib_ch01", "AI in Business — Chương 1", "AI trong kinh doanh",
+     "Trí tuệ nhân tạo trong kinh doanh được định nghĩa và phân loại thế nào?"),
+    ("aib_ch02", "AI in Business — Chương 2", "AI trong kinh doanh",
+     "Các phương pháp xấp xỉ mối quan hệ giữa X và y trong học máy là gì?"),
+    ("aib_ch03", "AI in Business — Chương 3", "AI trong kinh doanh",
+     "AI tạo tín hiệu hỗ trợ quyết định thị trường và kinh doanh ra sao?"),
+
+    # Bổ sung nhóm LLM (2) và giáo trình tiếng Việt (2).
+    ("ai_engineering_for_true_epub_chip_huyen_", "AI Engineering — Chip Huyen", "Large Language Models",
+     "Kỹ thuật prompt engineering và đánh giá mô hình ngôn ngữ lớn được trình bày thế nào?"),
+    ("ai_powered_developer_build_software_with",
+     "The AI-Powered Developer — ChatGPT & Copilot", "Large Language Models",
+     "ChatGPT và Copilot hỗ trợ lập trình viên xây dựng phần mềm như thế nào?"),
+    ("ai_for_student_vi", "AI for Students (Tiếng Việt)", "Giáo trình Tiếng Việt & Cơ sở ML",
+     "Sinh viên nên bắt đầu học trí tuệ nhân tạo từ những khái niệm nền tảng nào?"),
+    ("machine_learning_andrew_ng_pdf_ban_dich_",
+     "Machine Learning Yearning — Andrew Ng (Bản dịch)", "Giáo trình Tiếng Việt & Cơ sở ML",
+     "Chiến lược đặt mục tiêu và cải thiện mô hình học máy theo Andrew Ng gồm những gì?"),
 ]
 
 CATALOG = {
