@@ -26,8 +26,28 @@ def _secret(key, default=None):
         return os.environ.get(key, default)
 
 
+def _bool_secret(key, default):
+    """Secret bool, chấp nhận true/1/yes/on; dùng cho EMBED_NORMALIZE."""
+    v = _secret(key)
+    if v is None:
+        return bool(default)
+    if isinstance(v, bool):
+        return v
+    return str(v).strip().lower() in ("1", "true", "yes", "on")
+
+
 BASE_DIR = Path(__file__).resolve().parent
-INDEX_PATH = _secret("INDEX_PATH", str(BASE_DIR / "data" / "faiss_index_huggingface"))
+EMBED_MODEL = _secret("EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+# Embedder đa ngôn ngữ (bge-m3/e5/gte) dùng cosine: index build với
+# normalize_embeddings=True nên query cũng phải normalize. MiniLM index cũ build L2
+# không chuẩn hóa -> giữ default False, hành vi deploy hiện tại không đổi.
+_CROSS_LINGUAL_HINTS = ("bge-m3", "bge_large", "multilingual-e5", "e5-", "gte-")
+EMBED_NORMALIZE = _bool_secret(
+    "EMBED_NORMALIZE", any(h in EMBED_MODEL for h in _CROSS_LINGUAL_HINTS))
+# Thư mục index mặc định tự khớp model (bge-m3 -> 1024d, khác -> MiniLM 384d);
+# override qua Secret INDEX_PATH khi cần.
+_DEFAULT_INDEX_DIR = "faiss_index_bge_m3" if "bge-m3" in EMBED_MODEL else "faiss_index_huggingface"
+INDEX_PATH = _secret("INDEX_PATH", str(BASE_DIR / "data" / _DEFAULT_INDEX_DIR))
 # Key Groq của bản deploy đã đốt trần pool ngày trên gpt-oss-* (TPD trôi theo 24h),
 # qwen là model free còn chỗ; đổi lại qua LLM_MODEL trong Secrets khi cần.
 LLM_MODEL = _secret("LLM_MODEL", "qwen/qwen3.8-27b")
@@ -38,7 +58,6 @@ RETRIEVE_N = int(_secret("RETRIEVE_N", 20))
 TOP_K = int(_secret("RERANK_TOP_K", 5))
 # BM25 bỏ từ khoá xuất hiện trong hơn tỷ lệ này số chunk (xem select_query_terms).
 BM25_MAX_DF_RATIO = float(_secret("BM25_MAX_DF_RATIO", 0.10))
-EMBED_MODEL = _secret("EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
 # Rerank: "off" (nhẹ RAM nhất) | "cohere" (gọi API, không tốn RAM cloud) |
 # "local" (CrossEncoder bge-reranker-v2-m3, chỉ cho Colab/máy >2GB RAM).
@@ -331,7 +350,10 @@ def get_rag_bundle():
     from langchain_community.retrievers import BM25Retriever
     from langchain_classic.retrievers import EnsembleRetriever
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+    embeddings = HuggingFaceEmbeddings(
+        model_name=EMBED_MODEL,
+        encode_kwargs={"normalize_embeddings": EMBED_NORMALIZE},
+    )
     db = FAISS.load_local(INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
 
     # Dựng lại BM25 từ docstore đã lưu để web tự chạy, không cần chunk lại
@@ -372,6 +394,8 @@ def get_rag_bundle():
         "rerank_provider": RERANK_PROVIDER,
         "rerank_model": RERANK_MODEL if RERANK_PROVIDER in ("cohere", "local") else None,
         "embed_model": EMBED_MODEL,
+        "embed_normalize": EMBED_NORMALIZE,
+        "embed_dim": int(getattr(db.index, "d", 0) or 0),
         "llm_model": LLM_MODEL,
         "groq_keys": GROQ_KEYS,
         "index_path": str(INDEX_PATH),

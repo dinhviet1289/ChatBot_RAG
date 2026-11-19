@@ -16,7 +16,12 @@ def render_documents_view(bundle):
     st.subheader("Kho tài liệu đã nạp")
     st.caption("Toàn bộ học liệu được đánh chỉ mục FAISS + BM25 cho trợ lý học tập ELC3008.")
 
-    st.markdown(render_corpus_overview_html(rows), unsafe_allow_html=True)
+    cfg = bundle.get("config", {})
+    st.markdown(render_corpus_overview_html(
+        rows,
+        embed_dim=cfg.get("embed_dim", 384),
+        embed_model=cfg.get("embed_model") or "paraphrase-multilingual-MiniLM-L12-v2",
+    ), unsafe_allow_html=True)
 
     sel = st.pills("Nhóm tài liệu", ["Tất cả"] + list(CATEGORY_ORDER),
                    default="Tất cả", key="doc_cat")

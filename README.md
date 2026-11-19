@@ -165,3 +165,20 @@ Streamlit Cloud free ~1GB RAM. Bản này đã bỏ reranker để nhẹ nhất,
 vẫn ~470MB. Nếu app bị **OOM / restart liên tục**:
 - Đừng đặt `RERANK_PROVIDER=local` trên free (model reranker ~2GB). Dùng `cohere` (API) hoặc `off`.
 - Cân nhắc nâng cấp gói trả phí, hoặc chạy web trên máy/Colab như cũ.
+
+## Bật embedder bge-m3 (cross-lingual, CẦN RAM > 2.2GB)
+
+Mặc định web dùng MiniLM-L12 (384d, ~470MB) — an toàn cho free. Benchmark cho thấy
+`BAAI/bge-m3` nâng **Hit@5 0.434 → 0.697 (+61%)** vì corpus song ngữ Việt–Anh hỏi tiếng Việt
+nhưng đáp án nằm trong sách tiếng Anh. Chỉ bật khi có RAM đủ, theo 5 bước:
+
+1. Đặt **2 file index bge-m3 (1024d)** vào `data/faiss_index_bge_m3/` (thư mục đã có sẵn `manifest.json`): `index.faiss` + `index.pkl`.
+2. Trong **Secrets** thêm `EMBED_MODEL = BAAI/bge-m3`. Code **tự suy**: thư mục index → `faiss_index_bge_m3`
+   và `normalize_embeddings=True` (khớp cách build index cosine của bge-m3). Muốn gán tay: `INDEX_PATH`, `EMBED_NORMALIZE`.
+3. **Nâng gói RAM trả phí** — bge-m3 ~2.2GB >> free ~1GB, bật trên free sẽ OOM/reboot loop.
+4. **Commit → push → Manage app → Reboot**, rồi verify panel "Kho tài liệu": KPI *Không gian embedding* phải hiện `1024d · BAAI/bge-m3`.
+5. Quay lại MiniLM: xóa `EMBED_MODEL` khỏi Secrets (default đã là MiniLM, mọi thứ tự về cũ).
+
+Ghi chú: Streamlit vẫn **CPU-only**, nên query embed bge-m3 chậm hơn MiniLM (vài trăm ms–1s/câu) nhưng
+chấp nhận được vì web **chỉ đọc** index, không build ở web. Index 1024d và 384d không dùng lẫn được
+(lệch chiều) — luôn cặp đúng `EMBED_MODEL` với thư mục index tương ứng.

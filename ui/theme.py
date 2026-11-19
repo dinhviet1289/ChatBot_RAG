@@ -394,9 +394,11 @@ def render_retrieval_panel_html(res):
     )
 
 
-def render_corpus_overview_html(rows):
+def render_corpus_overview_html(rows, embed_dim=384,
+                                 embed_model="paraphrase-multilingual-MiniLM-L12-v2"):
     """Render corpus-level KPI cards and 8-category chunk distribution bar."""
     rows = list(rows or [])
+    embed_dim = int(embed_dim or 384)
     total_docs = len(rows)
     total_chunks = sum(int(r.get("chunk_count") or 0) for r in rows)
     en_docs = sum(1 for r in rows if r.get("lang") == "EN")
@@ -430,8 +432,8 @@ def render_corpus_overview_html(rows):
         f'</div>'
         f'<div class="rag-kpi-card">'
         f'<div class="rag-kpi-lbl">KHÔNG GIAN EMBEDDING</div>'
-        f'<div class="rag-kpi-val rag-mono">384d</div>'
-        f'<div class="rag-kpi-sub rag-mono">paraphrase-multilingual-MiniLM-L12-v2</div>'
+        f'<div class="rag-kpi-val rag-mono">{embed_dim}d</div>'
+        f'<div class="rag-kpi-sub rag-mono">{html.escape(str(embed_model))}</div>'
         f'</div>'
         f'</div>'
     )
