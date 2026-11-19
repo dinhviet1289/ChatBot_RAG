@@ -12,6 +12,18 @@ from views.conversation import render_conversation_view
 from views.documents import render_documents_view
 from views.inspector import render_inspector_view
 
+
+def _ram_mb():
+    """RAM thực của process app (MB) đọc từ /proc/self/status trên container Linux."""
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return int(line.split()[1]) / 1024
+    except (OSError, ValueError):
+        return None
+
+
 st.set_page_config(page_title="ELC3008 | Trợ lý học tập AI",
                    page_icon=":material/school:", layout="wide")
 inject_global_css()
@@ -73,6 +85,8 @@ with st.sidebar:
     st.divider()
     st.caption("Hệ thống")
     st.markdown(render_system_card_html(bundle["config"]), unsafe_allow_html=True)
+    ram = _ram_mb()
+    st.caption(f"RAM app: {ram:.0f} MB" if ram is not None else "RAM app: —")
 
 page = state["active_page"]
 if page == "conversation":
