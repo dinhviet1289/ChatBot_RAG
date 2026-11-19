@@ -20,8 +20,9 @@ def render_retrieval_panel(res):
 
 
 def render_inspector_view(bundle):
+    embed_dim = int(((bundle or {}).get("config") or {}).get("embed_dim") or 384)
     st.markdown("### Kiểm tra truy hồi (Retrieval Lab)")
-    st.caption("Mổ xẻ pipeline 2 tầng: Stage 1 Hybrid (0.3·BM25_df + 0.7·FAISS_384d) "
+    st.caption(f"Mổ xẻ pipeline 2 tầng: Stage 1 Hybrid (0.3·BM25_df + 0.7·FAISS_{embed_dim}d) "
                "→ Stage 2 Cross-Encoder Rerank. Không gọi LLM — không tốn token hạn mức.")
 
     with st.container(border=True):

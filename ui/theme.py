@@ -171,6 +171,7 @@ def render_system_card_html(cfg):
     llm_model = html.escape(str(cfg.get("llm_model") or "—"))
     embed_raw = str(cfg.get("embed_model") or "MiniLM-L12-v2")
     embed_short = html.escape(embed_raw.split("/")[-1])
+    embed_dim = int(cfg.get("embed_dim") or 384)
     key_count = len(cfg.get("groq_keys") or [])
 
     dot_cls = "rag-sys-dot is-on" if rerank_active else "rag-sys-dot is-off"
@@ -192,7 +193,7 @@ def render_system_card_html(cfg):
         f'<div class="rag-sys-row"><span>Stage-1</span><span class="rag-mono">BM25 0.3 + FAISS 0.7 · N={retrieve_n}</span></div>'
         f'<div class="rag-sys-row"><span>Stage-2</span><span class="rag-mono">Top-{top_k}</span></div>'
         f'<div class="rag-sys-row"><span>LLM</span><span class="rag-mono">{llm_model} ({key_count} key)</span></div>'
-        f'<div class="rag-sys-row"><span>Embed</span><span class="rag-mono">384d · {embed_short}</span></div>'
+        f'<div class="rag-sys-row"><span>Embed</span><span class="rag-mono">{embed_dim}d · {embed_short}</span></div>'
         f'</div></div>'
     )
 

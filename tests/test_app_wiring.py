@@ -195,5 +195,29 @@ class TestAppWiring(unittest.TestCase):
         self.assertIn("format_selected_context", src)
 
 
+    def test_system_card_shows_real_embedding_dim_not_hardcoded_384(self):
+        # Index bge-m3 là 1024d; sidebar hardcode "384d" sẽ nói sai chiều thật.
+        from ui.theme import render_system_card_html
+
+        out = render_system_card_html({"embed_model": "BAAI/bge-m3", "embed_dim": 1024})
+        self.assertIn("1024d", out)
+        self.assertNotIn("384d", out)
+
+    def test_system_card_defaults_to_384d_for_minilm(self):
+        from ui.theme import render_system_card_html
+
+        out = render_system_card_html(
+            {"embed_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"})
+        self.assertIn("384d", out)
+
+    def test_hero_and_inspector_labels_use_real_embed_dim(self):
+        conv = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
+        insp = (ROOT / "views" / "inspector.py").read_text(encoding="utf-8")
+        self.assertNotIn("FAISS 384d", conv)
+        self.assertNotIn("FAISS_384d", insp)
+        self.assertIn("embed_dim", conv)
+        self.assertIn("embed_dim", insp)
+
+
 if __name__ == "__main__":
     unittest.main()

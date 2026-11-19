@@ -104,6 +104,7 @@ def _render_empty_state(state, bundle=None):
     rerank_pill = "Cohere Rerank" if provider == "cohere" else (
         "Local Rerank" if provider == "local" else "Hybrid Stage-1"
     )
+    embed_dim = int(cfg.get("embed_dim") or 384)
     st.markdown(
         f'<div class="rag-hero">'
         f'<span class="rag-hero-badge">ELC3008 KNOWLEDGE OBSERVATORY</span>'
@@ -113,7 +114,7 @@ def _render_empty_state(state, bundle=None):
         f'<div class="rag-hero-pills">'
         f'<span class="rag-hero-pill">{doc_count} Học liệu</span>'
         f'<span class="rag-hero-pill">{chunk_count:,} Chunks</span>'
-        f'<span class="rag-hero-pill">BM25 + FAISS 384d</span>'
+        f'<span class="rag-hero-pill">BM25 + FAISS {embed_dim}d</span>'
         f'<span class="rag-hero-pill">{html.escape(rerank_pill)}</span>'
         f'</div></div>',
         unsafe_allow_html=True,
