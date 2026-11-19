@@ -28,7 +28,11 @@ from ui.state import (
     get_active_conversation,
     prepare_regenerate,
 )
-from ui.theme import render_citation_box_html, render_turn_telemetry_html
+from ui.theme import (
+    latex_to_plain_text,
+    render_citation_box_html,
+    render_turn_telemetry_html,
+)
 
 USER_AVATAR = ":material/person:"
 AI_AVATAR = ":material/school:"
@@ -56,14 +60,18 @@ def _render_history(conv):
     for msg in conv["messages"]:
         avatar = USER_AVATAR if msg["role"] == "user" else AI_AVATAR
         with st.chat_message(msg["role"], avatar=avatar):
-            st.markdown(msg["content"])
+            content = (latex_to_plain_text(msg["content"])
+                       if msg["role"] == "assistant" else msg["content"])
+            st.markdown(content)
             if msg["role"] == "assistant":
                 if msg.get("telemetry"):
                     st.markdown(render_turn_telemetry_html(msg["telemetry"]),
                                 unsafe_allow_html=True)
                 if msg.get("sources"):
-                    st.markdown(render_citation_box_html(msg["sources"]),
-                                unsafe_allow_html=True)
+                    with st.expander(f"Nguồn trích dẫn & truy hồi ({len(msg['sources'])})",
+                                     expanded=False):
+                        st.markdown(render_citation_box_html(msg["sources"]),
+                                    unsafe_allow_html=True)
 
 
 def _render_empty_state(state, bundle=None):
@@ -169,18 +177,24 @@ def render_conversation_view(bundle):
 
         ctx = format_selected_context(res["selected"])
         try:
-            answer = st.write_stream(stream_answer(
-                bundle["make_answer_chain"],
-                rotation_pairs(keys, model_chain(bundle["config"]["llm_model"])),
-                {"context": ctx, "question": prompt},
-                report=lambda model, key, fell_back: served.update(
-                    model=model, key=key, fell_back=fell_back)))
+            answer_slot = st.empty()
+            with answer_slot.container():
+                raw_answer = st.write_stream(stream_answer(
+                    bundle["make_answer_chain"],
+                    rotation_pairs(keys, model_chain(bundle["config"]["llm_model"])),
+                    {"context": ctx, "question": prompt},
+                    report=lambda model, key, fell_back: served.update(
+                        model=model, key=key, fell_back=fell_back)))
+            answer = latex_to_plain_text(raw_answer)
+            if answer != (raw_answer or ""):
+                answer_slot.markdown(answer)
             sources = sources_from_inspection(res["selected"]) if should_show_sources(answer) else []
             total_s = time.perf_counter() - started
             telemetry = _build_telemetry(bundle["config"], res, served, keys, total_s)
             st.markdown(render_turn_telemetry_html(telemetry), unsafe_allow_html=True)
             if sources:
-                st.markdown(render_citation_box_html(sources), unsafe_allow_html=True)
+                with st.expander(f"Nguồn trích dẫn & truy hồi ({len(sources)})", expanded=False):
+                    st.markdown(render_citation_box_html(sources), unsafe_allow_html=True)
             append_assistant_turn(
                 state, answer, sources,
                 latency_s=total_s,

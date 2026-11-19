@@ -3,6 +3,7 @@ from ui.theme import (
     PALETTE,
     _global_css,
     clean_snippet,
+    latex_to_plain_text,
     render_citation_box_html,
     render_corpus_overview_html,
     render_doc_card_html,
@@ -255,6 +256,61 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn('<span class="rag-rank-badge rag-mono">#1</span>', legacy_out)
         self.assertNotIn("rag-rank-flow", legacy_out)
         self.assertNotIn("rag-delta-", legacy_out)
+
+    def test_latex_to_plain_text_converts_delimited_and_bare_formulas(self):
+        self.assertEqual(
+            latex_to_plain_text(r"Hàm sigmoid: $\sigma(x) = \frac{1}{1 + e^{-x}}$."),
+            "Hàm sigmoid: σ(x) = 1 / (1 + e^(-x)).",
+        )
+        self.assertEqual(
+            latex_to_plain_text(r"\[P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}\]"),
+            "P(A|B) = (P(B|A) · P(A)) / P(B)",
+        )
+        self.assertEqual(
+            latex_to_plain_text(
+                r"$$\min_G \max_D V(D, G) = \mathbb{E}_{x \sim p_{\text{data}}(x)}[\log D(x)]$$"
+            ),
+            "min_G max_D V(D, G) = E_(x ~ p_data(x))[log D(x)]",
+        )
+        self.assertEqual(
+            latex_to_plain_text(
+                r"Công thức: \(\text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V\)"
+            ),
+            "Công thức: softmax(QK^T / √(d_k))V",
+        )
+        self.assertEqual(
+            latex_to_plain_text(
+                r"Cập nhật: \theta_{t+1} = \theta_t - \alpha \cdot \nabla J(\theta_t)"
+            ),
+            "Cập nhật: θ_(t+1) = θ_t - α · ∇ J(θ_t)",
+        )
+
+    def test_latex_to_plain_text_preserves_currency_and_code_blocks(self):
+        currency = "Giá từ $5 đến $10 hoặc $5-$10 cho mỗi lượt."
+        self.assertEqual(latex_to_plain_text(currency), currency)
+
+        code_sample = (
+            "Dùng `my_var_1` và:\n"
+            "```python\n"
+            "price = '$5-$10'\n"
+            "expr = r'\\frac{1}{2}'\n"
+            "```\n"
+            "Và công thức $\\hat{y} = \\vec{w} \\cdot x$."
+        )
+        out = latex_to_plain_text(code_sample)
+        self.assertIn("`my_var_1`", out)
+        self.assertIn("price = '$5-$10'", out)
+        self.assertIn("expr = r'\\frac{1}{2}'", out)
+        self.assertIn("hat(y) = vec(w) · x", out)
+
+    def test_clean_snippet_converts_latex_and_keeps_html_escaping(self):
+        raw = r"<!-- page: 12 --> Độ phức tạp $O(b^d)$ với $x \leq y$ và <tag>"
+        cleaned = clean_snippet(raw, max_len=120)
+        self.assertNotIn("<!-- page:", cleaned)
+        self.assertNotIn("$", cleaned)
+        self.assertIn("O(b^d)", cleaned)
+        self.assertIn("x ≤ y", cleaned)
+        self.assertIn("&lt;tag&gt;", cleaned)
 
 
 if __name__ == "__main__":

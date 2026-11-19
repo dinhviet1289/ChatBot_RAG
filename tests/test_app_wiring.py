@@ -88,8 +88,10 @@ class TestAppWiring(unittest.TestCase):
     def test_conversation_screen_is_chat_first(self):
         src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
         self.assertIn("st.chat_input", src)
-        self.assertNotIn("st.expander", src)
+        self.assertIn("st.expander", src)
+        self.assertIn("latex_to_plain_text", src)
         self.assertNotIn("Chi tiết truy hồi của lượt này", src)
+        self.assertNotIn("render_retrieval_panel", src)
         self.assertNotIn("st.checkbox", src)
         self.assertNotIn('key="insp_q"', src)
 

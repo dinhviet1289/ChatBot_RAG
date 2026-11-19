@@ -1,7 +1,7 @@
 """Scientific Observatory design system & safe HTML renderers for ELC3008.
 
-Pure functions (clean_snippet, render_citation_box_html, render_system_card_html,
-render_turn_telemetry_html, render_retrieval_panel_html,
+Pure functions (clean_snippet, latex_to_plain_text, render_citation_box_html,
+render_system_card_html, render_turn_telemetry_html, render_retrieval_panel_html,
 render_corpus_overview_html, render_doc_card_html) are unit-testable without a
 Streamlit runtime. inject_global_css() imports streamlit lazily so importing
 this module never requires Streamlit to be installed.
@@ -44,13 +44,336 @@ _CATEGORY_COLORS = (
 _PAGE_COMMENT = re.compile(r"<!--\s*page:\s*\d+\s*-->")
 _WHITESPACE = re.compile(r"\s+")
 
+_FENCED_CODE_RE = re.compile(r"```([^\n`]*)\n([\s\S]*?)```")
+_INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+_DISPLAY_DOLLAR_RE = re.compile(r"\$\$([\s\S]+?)\$\$")
+_DISPLAY_BRACKET_RE = re.compile(r"\\\[([\s\S]+?)\\\]")
+_INLINE_PAREN_RE = re.compile(r"\\\(([\s\S]+?)\\\)")
+_INLINE_DOLLAR_RE = re.compile(r"(?<!\\)\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)")
+
+_MATH_ENV_NAMES = (
+    "aligned", "align", "align\\*", "equation", "equation\\*",
+    "gather", "gather\\*", "cases", "split", "array",
+    "matrix", "pmatrix", "bmatrix", "multline", "multline\\*",
+)
+_MATH_BEGIN_RE = re.compile(
+    r"\\begin\{(?:" + "|".join(_MATH_ENV_NAMES) + r")\}(?:\{[^}]*\})?"
+)
+_MATH_END_RE = re.compile(
+    r"\\end\{(?:" + "|".join(_MATH_ENV_NAMES) + r")\}"
+)
+_SIZE_NOISE_RE = re.compile(
+    r"\\(?:left\.?|right\.?|bigl|bigr|big|Bigl|Bigr|Big|biggl|biggr|bigg|"
+    r"Biggl|Biggr|Bigg|displaystyle|textstyle|limits|nolimits)(?![A-Za-z])"
+)
+_BARE_SIZE_NOISE_RE = re.compile(
+    r"\\(?:left|right)(?=\s*(?:[()\[\]|.]|\\[{}|]))"
+    r"|\\(?:displaystyle|textstyle|limits|nolimits)(?![A-Za-z])"
+)
+_TEXT_MACROS_RE = re.compile(
+    r"\\(?:operatorname|boldsymbol|underline|textrm|textit|textbf|"
+    r"mathrm|mathbf|mathit|mathcal|mathbb|mathsf|mathtt|text|bm)(?![A-Za-z])"
+)
+_ACCENT_MACROS = {
+    "widehat": "hat",
+    "hat": "hat",
+    "overline": "bar",
+    "bar": "bar",
+    "widetilde": "tilde",
+    "tilde": "tilde",
+    "vec": "vec",
+}
+_ACCENT_RE = re.compile(
+    r"\\(" + "|".join(sorted(_ACCENT_MACROS, key=len, reverse=True)) + r")(?![A-Za-z])"
+)
+_SQRT_RE = re.compile(r"\\sqrt(?![A-Za-z])")
+_FRAC_RE = re.compile(r"\\(?:dfrac|tfrac|cfrac|frac)(?![A-Za-z])")
+_SCRIPT_RE = re.compile(r"([_^])\{")
+_BARE_SCRIPT_RE = re.compile(r"(?<=[A-Za-z0-9\u03b1-\u03c9\u0391-\u03a9)\]])([_^])\{")
+
+_LATEX_TOKEN_MAP = {
+    "cdot": "·", "times": "×", "div": "/", "pm": "±", "mp": "∓",
+    "leq": "≤", "le": "≤", "geq": "≥", "ge": "≥", "neq": "≠", "ne": "≠",
+    "approx": "≈", "equiv": "≡", "sim": "~", "propto": "∝",
+    "rightarrow": "→", "to": "→", "leftarrow": "←", "gets": "←",
+    "leftrightarrow": "↔", "Rightarrow": "⇒", "implies": "⇒",
+    "Leftarrow": "⇐", "Leftrightarrow": "⇔", "iff": "⇔",
+    "in": "∈", "notin": "∉", "subset": "⊂", "subseteq": "⊆",
+    "cup": "∪", "cap": "∩", "emptyset": "∅", "varnothing": "∅",
+    "forall": "∀", "exists": "∃", "neg": "¬", "lnot": "¬",
+    "land": "∧", "wedge": "∧", "lor": "∨", "vee": "∨",
+    "infty": "∞", "sum": "Σ", "prod": "Π", "int": "∫",
+    "partial": "∂", "nabla": "∇",
+    "dots": "...", "ldots": "...", "cdots": "...",
+    "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ",
+    "epsilon": "ε", "varepsilon": "ε", "zeta": "ζ", "eta": "η",
+    "theta": "θ", "vartheta": "θ", "iota": "ι", "kappa": "κ",
+    "lambda": "λ", "mu": "μ", "nu": "ν", "xi": "ξ", "pi": "π",
+    "rho": "ρ", "sigma": "σ", "varsigma": "σ", "tau": "τ",
+    "phi": "φ", "varphi": "φ", "chi": "χ", "psi": "ψ", "omega": "ω",
+    "Gamma": "Γ", "Delta": "Δ", "Theta": "Θ", "Lambda": "Λ",
+    "Xi": "Ξ", "Pi": "Π", "Sigma": "Σ", "Phi": "Φ", "Psi": "Ψ", "Omega": "Ω",
+    "argmax": "argmax", "argmin": "argmin", "softmax": "softmax",
+    "sigmoid": "sigmoid", "log": "log", "ln": "ln", "exp": "exp",
+    "sin": "sin", "cos": "cos", "tan": "tan", "min": "min", "max": "max",
+    "arg": "arg", "lim": "lim", "det": "det", "dim": "dim",
+    "Pr": "Pr", "inf": "inf", "sup": "sup", "mod": "mod",
+}
+_LATEX_TOKEN_RE = re.compile(
+    r"\\(" + "|".join(sorted(_LATEX_TOKEN_MAP, key=len, reverse=True)) + r")(?![A-Za-z])"
+)
+_SPACING_CMD_RE = re.compile(r"\\(?:qquad|quad|[,;:! ])")
+_SIMPLE_SCRIPT_RE = re.compile(r"^[A-Za-z0-9\u03b1-\u03c9\u0391-\u03a9]+$")
+
+
+def _extract_braced(s, start):
+    """Extract balanced `{...}` group starting at or after optional horizontal space."""
+    n = len(s)
+    idx = start
+    while idx < n and s[idx] in " \t":
+        idx += 1
+    if idx >= n or s[idx] != "{":
+        return None
+    depth = 0
+    i = idx
+    while i < n:
+        ch = s[i]
+        if ch == "\\":
+            i += 2
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return s[idx + 1:i], i + 1
+        i += 1
+    return None
+
+
+def _is_outer_enclosed(expr):
+    expr = expr.strip()
+    if len(expr) < 2 or not (expr.startswith("(") and expr.endswith(")")):
+        return False
+    depth = 0
+    for idx, ch in enumerate(expr):
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0 and idx < len(expr) - 1:
+                return False
+    return depth == 0
+
+
+def _needs_frac_parens(expr, is_denom=False):
+    expr = expr.strip()
+    if not expr or _is_outer_enclosed(expr):
+        return False
+    depth = 0
+    i = 0
+    n = len(expr)
+    while i < n:
+        ch = expr[i]
+        if ch == "\\":
+            if depth == 0:
+                for cmd in ("\\cdot", "\\times", "\\div", "\\pm", "\\mp"):
+                    end = i + len(cmd)
+                    if expr.startswith(cmd, i) and (end >= n or not expr[end].isalpha()):
+                        return True
+            i += 2
+            continue
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth = max(0, depth - 1)
+        elif depth == 0:
+            if ch.isspace() or ch in "+-*/·×":
+                return True
+            if is_denom and ch == "^":
+                return True
+        i += 1
+    return False
+
+
+def _unwrap_text_macros(s):
+    while True:
+        m = _TEXT_MACROS_RE.search(s)
+        if not m:
+            return s
+        extracted = _extract_braced(s, m.end())
+        if not extracted:
+            s = s[:m.start()] + s[m.end():]
+            continue
+        inner, end_idx = extracted
+        inner = _unwrap_text_macros(inner)
+        s = s[:m.start()] + inner + s[end_idx:]
+
+
+def _expand_accents(s):
+    while True:
+        m = _ACCENT_RE.search(s)
+        if not m:
+            return s
+        extracted = _extract_braced(s, m.end())
+        if not extracted:
+            s = s[:m.start()] + m.group(1) + s[m.end():]
+            continue
+        inner, end_idx = extracted
+        inner = _expand_accents(inner)
+        fn = _ACCENT_MACROS[m.group(1)]
+        s = s[:m.start()] + f"{fn}({inner})" + s[end_idx:]
+
+
+def _expand_sqrts(s):
+    while True:
+        m = _SQRT_RE.search(s)
+        if not m:
+            return s
+        pos = m.end()
+        while pos < len(s) and s[pos] in " \t":
+            pos += 1
+        degree = None
+        if pos < len(s) and s[pos] == "[":
+            close_idx = s.find("]", pos + 1)
+            if close_idx != -1:
+                degree = s[pos + 1:close_idx].strip()
+                pos = close_idx + 1
+        extracted = _extract_braced(s, pos)
+        if not extracted:
+            s = s[:m.start()] + "√" + s[m.end():]
+            continue
+        inner, end_idx = extracted
+        inner = _expand_sqrts(inner).strip()
+        rep = f"({inner})^(1/{degree})" if degree else f"√({inner})"
+        s = s[:m.start()] + rep + s[end_idx:]
+
+
+def _expand_fracs(s):
+    while True:
+        m = _FRAC_RE.search(s)
+        if not m:
+            return s
+        first = _extract_braced(s, m.end())
+        if not first:
+            s = s[:m.start()] + s[m.end():]
+            continue
+        num, pos = first
+        second = _extract_braced(s, pos)
+        if not second:
+            s = s[:m.start()] + _expand_fracs(num) + s[pos:]
+            continue
+        den, end_idx = second
+        num = _expand_fracs(num).strip()
+        den = _expand_fracs(den).strip()
+        if _needs_frac_parens(num, is_denom=False):
+            num = f"({num})"
+        if _needs_frac_parens(den, is_denom=True):
+            den = f"({den})"
+        s = s[:m.start()] + f"{num} / {den}" + s[end_idx:]
+
+
+def _simplify_scripts(s, require_prefix=False):
+    pattern = _BARE_SCRIPT_RE if require_prefix else _SCRIPT_RE
+    out = []
+    pos = 0
+    while True:
+        m = pattern.search(s, pos)
+        if not m:
+            out.append(s[pos:])
+            break
+        out.append(s[pos:m.start()])
+        op = m.group(1)
+        extracted = _extract_braced(s, m.end() - 1)
+        if not extracted:
+            out.append(s[m.start():m.end()])
+            pos = m.end()
+            continue
+        inner, end_idx = extracted
+        inner = _simplify_scripts(inner, require_prefix=False).strip()
+        if _SIMPLE_SCRIPT_RE.fullmatch(inner):
+            out.append(f"{op}{inner}")
+        else:
+            out.append(f"{op}({inner})")
+        pos = end_idx
+    return "".join(out)
+
+
+def _convert_math_expr(expr, inline=False):
+    s = str(expr)
+    s = _MATH_BEGIN_RE.sub("", s)
+    s = _MATH_END_RE.sub("", s)
+    s = re.sub(r"\\\\(?:\[[^\]]*\])?", "; " if inline else "\n", s)
+    s = s.replace(r"\&", "&")
+    s = re.sub(r"(?<!\\)&", " ", s)
+    s = _SIZE_NOISE_RE.sub("", s)
+    s = _unwrap_text_macros(s)
+    s = _expand_accents(s)
+    s = _expand_sqrts(s)
+    s = _expand_fracs(s)
+    s = s.replace(r"\{", "{").replace(r"\}", "}").replace(r"\|", "||")
+    s = s.replace(r"\%", "%").replace(r"\_", "_")
+    s = _SPACING_CMD_RE.sub(" ", s)
+    s = _LATEX_TOKEN_RE.sub(lambda m: _LATEX_TOKEN_MAP[m.group(1)], s)
+    s = _simplify_scripts(s, require_prefix=False)
+    lines = [re.sub(r"[ \t]{2,}", " ", line).strip() for line in s.splitlines()]
+    return "\n".join(line for line in lines if line) if not inline else " ".join(lines).strip()
+
+
+def latex_to_plain_text(text):
+    """Convert delimited and leaked bare LaTeX math into readable plain text while
+    preserving non-math code blocks, inline code without backslashes, and currency."""
+    if not text:
+        return ""
+    s = str(text)
+    placeholders = []
+
+    def _stash(value):
+        token = f"\x00CODE{len(placeholders)}\x00"
+        placeholders.append(value)
+        return token
+
+    def _handle_fenced(match):
+        lang = match.group(1).strip().lower()
+        body = match.group(2)
+        if lang in ("math", "latex", "tex"):
+            return _convert_math_expr(body, inline=False)
+        return _stash(match.group(0))
+
+    def _handle_inline_code(match):
+        if "\\" in match.group(1):
+            return match.group(0)
+        return _stash(match.group(0))
+
+    s = _FENCED_CODE_RE.sub(_handle_fenced, s)
+    s = _INLINE_CODE_RE.sub(_handle_inline_code, s)
+    s = _DISPLAY_DOLLAR_RE.sub(lambda m: _convert_math_expr(m.group(1), inline=False), s)
+    s = _DISPLAY_BRACKET_RE.sub(lambda m: _convert_math_expr(m.group(1), inline=False), s)
+    s = _INLINE_PAREN_RE.sub(lambda m: _convert_math_expr(m.group(1), inline=True), s)
+    s = _INLINE_DOLLAR_RE.sub(lambda m: _convert_math_expr(m.group(1), inline=True), s)
+
+    # Fallback for leaked bare LaTeX commands outside math delimiters.
+    s = _BARE_SIZE_NOISE_RE.sub("", s)
+    s = _unwrap_text_macros(s)
+    s = _expand_accents(s)
+    s = _expand_sqrts(s)
+    s = _expand_fracs(s)
+    s = s.replace(r"\{", "{").replace(r"\}", "}")
+    s = _LATEX_TOKEN_RE.sub(lambda m: _LATEX_TOKEN_MAP[m.group(1)], s)
+    s = _simplify_scripts(s, require_prefix=True)
+
+    for idx, original in enumerate(placeholders):
+        s = s.replace(f"\x00CODE{idx}\x00", original)
+    return s
+
 
 def clean_snippet(text, max_len=240):
-    """Strip indexed `<!-- page: N -->` markers, collapse whitespace, truncate,
-    then HTML-escape so raw chunk text can never break out of a custom card."""
+    """Strip indexed `<!-- page: N -->` markers, convert LaTeX to plain text,
+    collapse whitespace, truncate, then HTML-escape for custom cards."""
     if not text:
         return ""
     text = _PAGE_COMMENT.sub(" ", str(text))
+    text = latex_to_plain_text(text)
     text = _WHITESPACE.sub(" ", text).strip()
     truncated = len(text) > max_len
     if truncated:
@@ -170,7 +493,7 @@ def render_citation_box_html(sources):
     return (
         f'<div class="rag-citation" style="background:{PALETTE["callout"]};'
         f'border:1px solid {PALETTE["border"]};border-radius:12px;'
-        f'padding:14px 16px;margin-top:12px;">'
+        f'padding:14px 16px;margin-top:4px;">'
         f'<div class="rag-citation-head" style="color:{PALETTE["link"]};'
         f'font-weight:600;font-size:0.78rem;letter-spacing:0.06em;margin-bottom:8px;">'
         f'<span class="rag-mono">NGUỒN TRÍCH DẪN · {len(sources)}</span></div>'
