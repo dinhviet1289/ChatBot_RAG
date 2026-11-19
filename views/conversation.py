@@ -29,7 +29,7 @@ from ui.state import (
     prepare_regenerate,
 )
 from ui.theme import (
-    latex_to_plain_text,
+    normalize_latex_for_streamlit,
     render_citation_box_html,
     render_turn_telemetry_html,
 )
@@ -60,7 +60,7 @@ def _render_history(conv):
     for msg in conv["messages"]:
         avatar = USER_AVATAR if msg["role"] == "user" else AI_AVATAR
         with st.chat_message(msg["role"], avatar=avatar):
-            content = (latex_to_plain_text(msg["content"])
+            content = (normalize_latex_for_streamlit(msg["content"])
                        if msg["role"] == "assistant" else msg["content"])
             st.markdown(content)
             if msg["role"] == "assistant":
@@ -185,7 +185,7 @@ def render_conversation_view(bundle):
                     {"context": ctx, "question": prompt},
                     report=lambda model, key, fell_back: served.update(
                         model=model, key=key, fell_back=fell_back)))
-            answer = latex_to_plain_text(raw_answer)
+            answer = normalize_latex_for_streamlit(raw_answer)
             if answer != (raw_answer or ""):
                 answer_slot.markdown(answer)
             sources = sources_from_inspection(res["selected"]) if should_show_sources(answer) else []

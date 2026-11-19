@@ -4,6 +4,7 @@ from ui.theme import (
     _global_css,
     clean_snippet,
     latex_to_plain_text,
+    normalize_latex_for_streamlit,
     render_citation_box_html,
     render_corpus_overview_html,
     render_doc_card_html,
@@ -311,6 +312,42 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn("O(b^d)", cleaned)
         self.assertIn("x ≤ y", cleaned)
         self.assertIn("&lt;tag&gt;", cleaned)
+
+    def test_normalize_latex_for_streamlit_converts_delimiters_and_preserves_code(self):
+        src = (
+            "Công thức:\n"
+            r"\[ \pi_\theta(s, a) = \frac{\exp(\beta \hat{Q}_\theta(s, a))}{\sum_{a'} \exp(\beta \hat{Q}_\theta(s, a'))} \]"
+            "\nVà biểu thức inline \\( f(n) = g(n) + h(n) \\), $ \\frac{1}{2} $, $$E = mc^2$$.\n"
+            "```latex\n"
+            r"\alpha + \beta"
+            "\n```\n"
+            "Giá từ $5 đến $10, giữ code `\\(x\\)` và:\n"
+            "```python\n"
+            "x = r'\\[a + b\\]'\n"
+            "```"
+        )
+        out = normalize_latex_for_streamlit(src)
+        self.assertIn(
+            "\n\n$$\n\\pi_\\theta(s, a) = \\frac{\\exp(\\beta \\hat{Q}_\\theta(s, a))}{\\sum_{a'} \\exp(\\beta \\hat{Q}_\\theta(s, a'))}\n$$\n\n",
+            out,
+        )
+        self.assertIn("$f(n) = g(n) + h(n)$", out)
+        self.assertIn(r"$\frac{1}{2}$", out)
+        self.assertIn("$$\nE = mc^2\n$$", out)
+        self.assertIn("$$\n\\alpha + \\beta\n$$", out)
+        self.assertIn("Giá từ $5 đến $10", out)
+        self.assertIn("`\\(x\\)`", out)
+        self.assertIn("x = r'\\[a + b\\]'", out)
+
+    def test_global_css_isolates_nested_citation_details_and_spaces_telemetry(self):
+        css = _global_css()
+        self.assertIn("[data-testid=\"stExpander\"] > details {", css)
+        self.assertNotIn("[data-testid=\"stExpander\"] details {", css)
+        self.assertIn(".rag-cite-details", css)
+        self.assertIn("border:none !important", css)
+        self.assertIn("margin:10px 0 14px;", css)
+        self.assertIn('[data-testid="stChatMessage"] [data-testid="stExpander"]', css)
+        self.assertIn(".katex-display", css)
 
 
 if __name__ == "__main__":

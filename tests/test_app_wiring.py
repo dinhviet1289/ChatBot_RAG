@@ -89,7 +89,7 @@ class TestAppWiring(unittest.TestCase):
         src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
         self.assertIn("st.chat_input", src)
         self.assertIn("st.expander", src)
-        self.assertIn("latex_to_plain_text", src)
+        self.assertIn("normalize_latex_for_streamlit", src)
         self.assertNotIn("Chi tiết truy hồi của lượt này", src)
         self.assertNotIn("render_retrieval_panel", src)
         self.assertNotIn("st.checkbox", src)

@@ -296,6 +296,17 @@ class TestCatalogAndEngine(unittest.TestCase):
             "(artificial_intelligence_a_modern_approac), trang 60]\nPEAS description",
         )
 
+    def test_template_only_has_context_and_question_placeholders(self):
+        import string
+        import rag_engine_web
+
+        fields = {
+            fname
+            for _, fname, _, _ in string.Formatter().parse(rag_engine_web.TEMPLATE)
+            if fname is not None
+        }
+        self.assertEqual(fields, {"context", "question"})
+
 
 if __name__ == "__main__":
     unittest.main()

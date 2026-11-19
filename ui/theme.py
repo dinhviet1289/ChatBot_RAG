@@ -1,10 +1,10 @@
 """Scientific Observatory design system & safe HTML renderers for ELC3008.
 
-Pure functions (clean_snippet, latex_to_plain_text, render_citation_box_html,
-render_system_card_html, render_turn_telemetry_html, render_retrieval_panel_html,
-render_corpus_overview_html, render_doc_card_html) are unit-testable without a
-Streamlit runtime. inject_global_css() imports streamlit lazily so importing
-this module never requires Streamlit to be installed.
+Pure functions (clean_snippet, latex_to_plain_text, normalize_latex_for_streamlit,
+render_citation_box_html, render_system_card_html, render_turn_telemetry_html,
+render_retrieval_panel_html, render_corpus_overview_html, render_doc_card_html)
+are unit-testable without a Streamlit runtime. inject_global_css() imports streamlit
+lazily so importing this module never requires Streamlit to be installed.
 """
 
 import html
@@ -362,6 +362,49 @@ def latex_to_plain_text(text):
     s = _LATEX_TOKEN_RE.sub(lambda m: _LATEX_TOKEN_MAP[m.group(1)], s)
     s = _simplify_scripts(s, require_prefix=True)
 
+    for idx, original in enumerate(placeholders):
+        s = s.replace(f"\x00CODE{idx}\x00", original)
+    return s
+
+
+_INLINE_LATEX_SPACED_RE = re.compile(r"(?<!\\)\$[ \t]*([^$\n]*\\[^$\n]*?)[ \t]*\$(?!\d)")
+
+
+def normalize_latex_for_streamlit(text):
+    """Normalize LaTeX delimiters to Streamlit KaTeX (`$$...$$` / `$...$`) while
+    protecting non-math code blocks, inline code spans, and currency."""
+    if not text:
+        return ""
+    raw = str(text)
+    placeholders = []
+
+    def _stash(value):
+        token = f"\x00CODE{len(placeholders)}\x00"
+        placeholders.append(value)
+        return token
+
+    def _handle_fenced(match):
+        lang = match.group(1).strip().lower()
+        body = match.group(2).strip()
+        if lang in ("math", "latex", "tex"):
+            if body.startswith("$$") and body.endswith("$$") and len(body) >= 4:
+                body = body[2:-2].strip()
+            elif body.startswith(r"\[") and body.endswith(r"\]") and len(body) >= 4:
+                body = body[2:-2].strip()
+            return f"\n\n$$\n{body}\n$$\n\n"
+        return _stash(match.group(0))
+
+    s = _FENCED_CODE_RE.sub(_handle_fenced, raw)
+    s = _INLINE_CODE_RE.sub(lambda m: _stash(m.group(0)), s)
+    s = _DISPLAY_BRACKET_RE.sub(lambda m: f"\n\n$$\n{m.group(1).strip()}\n$$\n\n", s)
+    s = _DISPLAY_DOLLAR_RE.sub(lambda m: f"\n\n$$\n{m.group(1).strip()}\n$$\n\n", s)
+    s = _INLINE_PAREN_RE.sub(lambda m: f"${m.group(1).strip()}$", s)
+    s = _INLINE_LATEX_SPACED_RE.sub(lambda m: f"${m.group(1).strip()}$", s)
+    s = re.sub(r"\n{3,}", "\n\n", s)
+    if not raw.startswith("\n"):
+        s = s.lstrip("\n")
+    if not raw.endswith("\n"):
+        s = s.rstrip("\n")
     for idx, original in enumerate(placeholders):
         s = s.replace(f"\x00CODE{idx}\x00", original)
     return s
@@ -977,10 +1020,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 [data-testid="stAlert"] [kind="warning"] { border-left:3px solid var(--warning); }
 [data-testid="stAlert"] [kind="success"] { border-left:3px solid var(--success); }
 [data-testid="stAlert"] [kind="info"] { border-left:3px solid var(--info); }
-[data-testid="stExpander"] details { border:1px solid var(--border); border-radius:12px;
+[data-testid="stExpander"] > details { border:1px solid var(--border); border-radius:12px;
   background:var(--card); }
-[data-testid="stExpander"] summary { transition:color var(--speed) var(--ease); }
-[data-testid="stExpander"] summary:hover { color:var(--link); }
+[data-testid="stExpander"] > details > summary { transition:color var(--speed) var(--ease); }
+[data-testid="stExpander"] > details > summary:hover { color:var(--link); }
+[data-testid="stChatMessage"] [data-testid="stExpander"] { margin-top:6px; }
+.katex-display { overflow-x:auto; overflow-y:hidden; padding:4px 0; }
 [data-testid="stExpander"] [data-testid="stVerticalBlock"],
 [data-testid="stExpanderDetails"] [data-testid="stVerticalBlock"] {
   animation:rag-fade 180ms var(--ease) backwards; }
@@ -1003,7 +1048,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   color:var(--link); font-size:0.84rem; font-family:var(--font-mono); }
 .rag-stage-dot { width:8px; height:8px; border-radius:50%; background:var(--info);
   animation:rag-pulse 1.2s ease-in-out infinite; flex-shrink:0; }
-.rag-telemetry-strip { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.rag-telemetry-strip { display:flex; flex-wrap:wrap; gap:8px 6px; margin:10px 0 14px; }
 .rag-tel-chip { font-size:0.74rem; color:var(--muted); background:rgba(16,22,34,0.75);
   border:1px solid var(--border); border-radius:999px; padding:2px 9px; }
 .rag-tel-model { color:var(--link); }
@@ -1026,11 +1071,18 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   background:linear-gradient(90deg, var(--primary), var(--info)); }
 .rag-cite-score { font-family:var(--font-mono); background:var(--active-pill); color:var(--link);
   border-radius:999px; padding:1px 8px; font-size:0.74rem; font-weight:600; }
-.rag-cite-details { margin-top:5px; }
+[data-testid="stExpander"] .rag-cite-details,
+.rag-cite-details { margin-top:6px; border:none !important; border-radius:0 !important;
+  background:transparent !important; box-shadow:none !important; padding:0 !important; }
+[data-testid="stExpander"] .rag-cite-details > summary,
 .rag-cite-details > summary { color:var(--muted); font-size:0.78rem; cursor:pointer;
-  list-style:none; display:inline-block; transition:color var(--speed) var(--ease); }
-.rag-cite-details > summary::before { content:"▸ "; }
-.rag-cite-details[open] > summary::before { content:"▾ "; }
+  list-style:none; display:inline-flex; align-items:center; gap:4px;
+  padding:2px 0 !important; margin:0; background:transparent !important;
+  border:none !important; border-radius:0 !important; min-height:0 !important;
+  transition:color var(--speed) var(--ease); }
+.rag-cite-details > summary::-webkit-details-marker { display:none; }
+.rag-cite-details > summary::before { content:"▸"; font-size:0.74rem; line-height:1; }
+.rag-cite-details[open] > summary::before { content:"▾"; }
 .rag-cite-details > summary:hover { color:var(--ink); }
 .rag-cite-details[open] .rag-cite-snippet { animation:rag-fade 160ms var(--ease); }
 .rag-cite-snippet { color:var(--muted); font-size:0.82rem; margin-top:5px; line-height:1.5;
