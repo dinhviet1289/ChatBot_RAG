@@ -1,184 +1,153 @@
 # ELC3008 — Trợ lý học tập AI (RAG Chatbot)
 
-Chatbot hỏi đáp tài liệu môn Trí tuệ nhân tạo, chạy thẳng trên **Streamlit Community Cloud**
-từ repo GitHub này — không cần Colab/ngrok.
+Trợ lý hỏi đáp học liệu môn **Trí tuệ nhân tạo (ELC3008 — ĐH Kinh tế, ĐH Đà Nẵng)** xây dựng theo kiến trúc **Retrieval-Augmented Generation (RAG)**, triển khai trực tiếp trên **Streamlit Community Cloud**.
 
-- **Web:** `app.py` (Streamlit) + `rag_engine_web.py` (RAG engine).
-- **Retrieval:** hybrid BM25 + FAISS (embedding `paraphrase-multilingual-MiniLM-L12-v2`).
-- **LLM:** Groq `qwen/qwen3.8-27b` (đổi bằng `LLM_MODEL` trong Secrets). Key free gọi được
-  `qwen/qwen3.8-27b`, `openai/gpt-oss-20b`, `openai/gpt-oss-120b` — mỗi model một pool hạn mức
-  riêng (~200K token/ngày, trừ hết sau ~100 câu hỏi, pool trôi theo 24h). Hai model Llama cũ của
-  Groq đã chuyển sang Enterprise → **404 trên key free**.
-- **Tự đổi model rồi đổi key khi cạn hạn mức:** mỗi câu hỏi đi qua `stream_answer`; cặp
-  (model, key) đang dùng lỗi 404/429 thì tự thử 2 model free còn lại, hết cả 3 model mới sang
-  key kế trong `GROQ_API_KEYS`. Trang Hỏi đáp ghi rõ model nào thực sự trả lời (key chỉ hiện số thứ tự).
-  Request bị từ chối vì hạn mức không tốn token nên quét nhiều cặp vẫn rẻ.
-- **Reranker:** mặc định TẮT (`RERANK_PROVIDER=off`). Trên cloud free nên bật
-  `RERANK_PROVIDER=cohere` — rerank qua API, **không tốn RAM**. Bản local `bge-reranker-v2-m3`
-  (`RERANK_PROVIDER=local`) chỉ cho Colab/máy >2GB RAM; pipeline đầy đủ vẫn giữ trong notebook để eval.
-- **Eval (RAGAS):** chạy trong Colab, KHÔNG nằm trong repo web này.
-
-## Giao diện (Figma Indigo)
-
-`app.py` là shell `layout="wide"` với sidebar trái (brand, nút "Cuộc hội thoại mới",
-2 nút điều hướng, danh sách cuộc hội thoại **mới nhất nằm trên cùng** — cuộc đang mở
-được tô sáng, thẻ trạng thái hệ thống gồm **Rerank đang bật/tắt**). Ba view trong `views/`:
-
-- `views/documents.py` — Kho tài liệu (nav): KPI (số học liệu / chunks /
-  chiều embedding), lọc theo nhóm + tìm kiếm, thẻ từng tài liệu kèm link Drive và
-  "Hỏi thử tài liệu này" (mở màn hình hội thoại và chạy luôn câu hỏi mẫu).
-- `views/conversation.py` — Màn hình hội thoại (**trang mặc định khi mở app**),
-  mở từ sidebar (tạo mới / chọn cuộc hội thoại / hỏi thử tài liệu), không nằm trong nav:
-  ô chat dưới đáy (Enter để gửi),
-  cuộc mới mở ra bằng hero "Bạn muốn ôn tập phần nào?" + **4 thẻ gợi ý lớn lưới 2×2**
-  (bấm thẻ chạy luôn, không render lại lần hai), lịch sử + trả lời streaming kèm
-  trích dẫn bền vững và nút "Tạo lại câu trả lời"; expander số liệu ms retrieve/rerank,
-  Top-K kèm rank-delta và ứng viên stage-1 nằm dưới mỗi lượt.
-- `views/inspector.py` — Kiểm tra truy hồi (nav): nhập câu hỏi bất kỳ để xem tầng
-  hybrid retrieve + rerank chọn tài liệu nào, hạng nào bị kéo lên/xuống, mất bao
-  nhiêu ms. Không gọi LLM nên không tốn token hạn mức.
-
-Chuyển trang / đổi cuộc hội thoại / tạo mới chỉ đổi state rồi để lần chạy hiện tại
-tự render (sidebar chạy trước dispatch) — không rerun thủ công nên không nhấp nháy
-hai lần. Logic thuần nằm trong `ui/` (`catalog`, `state`, `theme`) để unit-test
-không cần Streamlit. Renderer HTML escape mọi text và chỉ nhận link `https://`.
-
-> Đánh giá định lượng (Quality Gate + RAGAS) nằm trong Colab, không ở web app — xem
-> `eval_rag.py` trong notebook.
+- **Web Live:** https://chatbotragdue.streamlit.app/
+- **Kho học liệu:** 44 tài liệu PDF (24 tiếng Việt, 20 tiếng Anh) — 15.510 chunks (`size=1500`, `overlap=300`).
+- **Đánh giá định lượng (RAGAS):** Chạy riêng trên Google Colab (không đóng gói vào repo web để giữ nhẹ RAM).
 
 ---
 
-## 1. Chuẩn bị FAISS index (bắt buộc)
+## Kiến trúc Pipeline RAG
 
-Repo cần index đã build sẵn. Tải từ Google Drive của m:
-
+```text
+Câu hỏi người dùng
+  │
+  ▼
+[Stage 1] Hybrid Retrieval (N = 20 ứng viên)
+  ├── BM25_df (trọng số 0.30) — lọc từ khóa đặc hiệu, bắt chuẩn thuật ngữ/ký hiệu
+  └── FAISS   (trọng số 0.70) — tìm kiếm ngữ nghĩa (MiniLM 384d hoặc bge-m3 1024d)
+  │
+  ▼
+[Stage 2] Cross-Encoder Rerank (giữ Top-K = 5)
+  └── Cohere API (rerank-multilingual-v3.0) — không tốn RAM cloud; fallback an toàn nếu lỗi
+  │
+  ▼
+[Stage 3] Sinh câu trả lời & Trích dẫn
+  └── Groq `qwen/qwen3.8-27b` (tự xoay vòng model → key khi gặp 429/404) + KaTeX
 ```
-/content/drive/MyDrive/ChatboxRAG/faiss_index_huggingface/
+
+### Điểm nổi bật kỹ thuật
+- **LLM & Tự động xoay vòng hạn mức:** Mặc định dùng Groq `qwen/qwen3.8-27b` (đổi qua `LLM_MODEL` trong Secrets). Các model free được hỗ trợ gồm `qwen/qwen3.8-27b`, `openai/gpt-oss-20b` và `openai/gpt-oss-120b` (mỗi model có pool hạn mức riêng ~200K token/ngày). Khi gặp lỗi `404`/`429`, `stream_answer()` tự động thử lần lượt các model còn lại trên key hiện tại trước khi chuyển sang key kế tiếp trong `GROQ_API_KEYS`.
+- **Reranker linh hoạt:** Hỗ trợ `RERANK_PROVIDER=off | cohere | local`. Trên Streamlit Cloud miễn phí (~1 GB RAM), khuyên dùng `cohere` qua API để tăng độ chính xác truy hồi mà không tốn RAM; `local` (`BAAI/bge-reranker-v2-m3`) chỉ dành cho máy/Colab > 2 GB RAM.
+- **Hiển thị công thức toán chuẩn KaTeX:** Prompt kết hợp hàm `normalize_latex_for_streamlit()` chuẩn hóa các ký hiệu LaTeX về chuẩn `$$...$$` / `$...$` của Streamlit mà vẫn giữ nguyên code block và tiền tệ.
+
+---
+
+## Giao diện & Tính năng (`Scientific Observatory`)
+
+`app.py` sử dụng bố cục `layout="wide"` với sidebar trái (thương hiệu **Trợ lý học tập DUE**, nút tạo cuộc hội thoại mới, điều hướng, danh sách hội thoại **mới nhất ở trên cùng**, thẻ trạng thái hệ thống và chỉ số **RAM app** thực tế):
+
+1. **Màn hình hội thoại (`views/conversation.py` — trang mặc định):**
+   - Cuộc hội thoại mới mở với hero tổng quan kho học liệu và **4 thẻ gợi ý 2×2**.
+   - Trả lời streaming kèm dải telemetry từng lượt (tổng thời gian, `Stage-1 ms`, `Rerank ms`, số chunk chọn, model và slot key đang phục vụ).
+   - Khung **`Nguồn trích dẫn & truy hồi`** nằm gọn trong `st.expander`, hiển thị huy hiệu hạng `#1..#5`, biến động hạng sau rerank (`#init → #final ▲ +delta`), điểm liên quan, link Google Drive (nếu có) và trích đoạn gốc.
+2. **Kho tài liệu (`views/documents.py`):**
+   - Thống kê KPI (44 học liệu, 15.510 chunks, số chiều embedding thực tế), thanh phân bổ theo 8 nhóm học phần, lọc theo nhóm, tìm kiếm và nút **Hỏi thử tài liệu này**.
+3. **Kiểm tra truy hồi (`views/inspector.py`):**
+   - Công cụ debug 2 tầng Stage-1 / Stage-2 (kèm bảng toàn bộ ứng viên Stage-1) cho câu hỏi bất kỳ mà **không gọi LLM** nên không tiêu tốn token hạn mức.
+
+---
+
+## Cấu trúc thư mục
+
+```text
+chatbox-rag/
+├── app.py                        # Entrypoint Streamlit & điều hướng sidebar
+├── rag_engine_web.py             # Hybrid BM25 + FAISS, Cohere rerank, Groq fallback rotation
+├── requirements.txt              # Thư viện tối giản (torch CPU-only, không kèm ragas/plotly)
+├── ui/
+│   ├── catalog.py                # Danh mục 44 học liệu, link Drive, gộp nguồn trích dẫn
+│   ├── state.py                  # Quản lý state đa hội thoại (pure Python)
+│   └── theme.py                  # Theme Dark Indigo, CSS & renderer HTML/LaTeX an toàn
+├── views/
+│   ├── conversation.py           # Màn hình hội thoại chính
+│   ├── documents.py              # Trang Kho tài liệu
+│   └── inspector.py              # Trang Kiểm tra truy hồi
+├── data/
+│   ├── faiss_index_huggingface/  # Index MiniLM-L12-v2 (384d): index.faiss, index.pkl, manifest.json
+│   └── faiss_index_bge_m3/       # Cấu hình & manifest cho index BAAI/bge-m3 (1024d)
+├── .streamlit/
+│   ├── config.toml               # Cấu hình theme & server Streamlit
+│   └── secrets.toml.example      # Mẫu biến môi trường / Secrets (không chứa key thật)
+└── tests/                        # Bộ unit test thuần stdlib (không cần cài Streamlit)
 ```
 
-Copy **3 file** `index.faiss`, `index.pkl` và `manifest.json` vào thư mục:
+---
 
-```
-data/faiss_index_huggingface/index.faiss
-data/faiss_index_huggingface/index.pkl
-data/faiss_index_huggingface/manifest.json
-```
-
-> Bộ index đầy đủ **44 tài liệu / 15.510 chunks** (~45MB) nên commit thẳng lên GitHub
-> được (<100MB). `manifest.json` liệt kê `doc_id` + số chunks; test
-> `test_catalog_doc_ids_match_the_index_manifest_exactly` đối chiếu khớp đúng với
-> `ui/catalog.py`. Nếu >100MB thì dùng Git LFS.
-
-## 2. Đẩy lên GitHub
+## Chạy thử Local
 
 ```bash
-cd chatbox-rag
-git init
-git add .
-git commit -m "ELC3008 RAG chatbot for Streamlit Cloud"
-git branch -M main
-git remote add origin https://github.com/<ten-m>/<ten-repo>.git
-git push -u origin main
-```
-
-**Lưu ý bảo mật:** `.streamlit/secrets.toml` đã nằm trong `.gitignore` — KHÔNG commit key.
-Chỉ commit `secrets.toml.example` (file mẫu, không chứa key thật).
-
-## 3. Nối Streamlit Community Cloud
-
-1. Vào https://share.streamlit.io → đăng nhập bằng GitHub.
-2. **Create app** → chọn repo này, branch `main`, file `app.py`.
-3. Mở **Advanced settings → Secrets**, dán:
-   ```toml
-   GROQ_API_KEY = "gsk_key_that_cua_m"
-   ```
-4. **Deploy**. Lần đầu build vài phút (tải torch CPU + model embedding).
-
-Xong — app chạy tại `https://<ten-app>.streamlit.app`. **Lưu ý:** push code chỉ khiến
-Cloud đọc lại `app.py`; các module đã import (`ui/`, `views/`, `rag_engine_web.py`) và
-bundle `@st.cache_resource` vẫn sống trong tiến trình cũ. Sau khi push thay đổi ở các file đó,
-phải **Manage app → Reboot** thì bản mới mới chạy thật.
-
-### Bật rerank Cohere (khuyên dùng trên cloud free)
-
-Rerank tăng chất lượng truy hồi mà không tốn RAM (model chạy trên server Cohere):
-
-1. Tạo **Trial API key** miễn phí tại https://dashboard.cohere.com/api-keys.
-2. App settings → **Secrets**, thêm:
-   ```toml
-   RERANK_PROVIDER = "cohere"
-   COHERE_API_KEY = "key_cua_m"
-   ```
-3. Save → app tự chạy lại. Mặc định dùng `rerank-multilingual-v3.0` (hỗ trợ tiếng Việt);
-   muốn đổi thì thêm `RERANK_MODEL = "rerank-v3.5"` (hoặc `rerank-v4.0-fast`).
-
-Nếu Cohere lỗi/rate-limit, app tự fallback về thứ tự truy hồi gốc nên vẫn trả lời được.
-
-### Thêm nhiều key Groq (tự xoay khi hết hạn mức)
-
-Một key free chỉ được ~200K token/ngày **cho mỗi model** (~100 câu hỏi), và trần 8K token/phút
-nghĩa là chỉ ~4 câu hỏi/phút nếu cả nhóm dùng chung. Thêm key dự phòng vào **Secrets**:
-
-```toml
-GROQ_API_KEY = "key_chinh"
-GROQ_API_KEYS = ["key_chinh", "key_ban_1", "key_ban_2"]
-```
-
-Thứ tự thử: hết 3 model của key chính → key kế → lại 3 model. Sidebar hiện `LLM … · N key`
-để biết Secrets đã nạp đủ. **Lưu ý:** nhiều key tạo trong *cùng một* tài khoản Groq dùng chung
-pool hạn mức — muốn thêm hạn mức thật thì key phải tới từ tài khoản khác.
-
-Sau khi sửa Secrets nhớ **Save changes** rồi **Restart** (Manage app → Restart), nếu không
-app vẫn chạy giá trị cũ.
-
-## 4. Chạy thử local (tuỳ chọn)
-
-```bash
+git clone https://github.com/<username>/<repo>.git
+cd <repo>
 pip install -r requirements.txt
-cp .streamlit/secrets.toml.example .streamlit/secrets.toml   # rồi điền key thật
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+# Điền GROQ_API_KEY (và COHERE_API_KEY nếu bật rerank) vào .streamlit/secrets.toml
 streamlit run app.py
 ```
 
+### Chạy Unit Tests
+
+Toàn bộ logic pure-Python (`ui/`, `rag_engine_web.py` và cấu trúc `app.py`) được kiểm thử không phụ thuộc runtime Streamlit:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
 ---
 
-## Khoá version (nếu build lỗi)
+## Triển khai lên Streamlit Community Cloud
 
-`requirements.txt` đang để version langchain "thả nổi" cho khớp bản mới nhất. Nếu Cloud
-build báo lỗi xung đột version, chạy **1 cell này trong Colab** (nơi đã chạy tốt) rồi gửi
-output để khoá chính xác:
+### 1. Chuẩn bị FAISS index
+Đảm bảo thư mục `data/faiss_index_huggingface/` có đủ **3 file** (`index.faiss`, `index.pkl`, `manifest.json`). Bộ đầy đủ 44 tài liệu / 15.510 chunks (~45 MB) nhỏ hơn giới hạn 100 MB của GitHub nên có thể commit trực tiếp (nếu vượt 100 MB cần dùng Git LFS).
+
+### 2. Tạo app & cấu hình Secrets
+1. Truy cập https://share.streamlit.io → đăng nhập GitHub → **Create app**.
+2. Chọn repository, branch `main`, main file `app.py` (khuyến nghị **Python 3.12** trong *Advanced settings*).
+3. Mở **Settings → Secrets** và dán cấu hình:
+
+```toml
+GROQ_API_KEY = "gsk_your_primary_key"
+GROQ_API_KEYS = ["gsk_your_primary_key", "gsk_backup_key_1", "gsk_backup_key_2"]
+
+# Bật Rerank qua Cohere API (khuyên dùng trên cloud free)
+RERANK_PROVIDER = "cohere"
+COHERE_API_KEY = "your_cohere_trial_key"
+```
+
+> **Lưu ý vận hành:**
+> - Sau khi sửa Secrets, nhấn **Save changes** rồi **Manage app → Reboot** để tiến trình app nạp lại cấu hình.
+> - Khi push code thay đổi trong `ui/`, `views/` hoặc `rag_engine_web.py`, Streamlit Cloud chỉ tự đọc lại `app.py`; hãy **Reboot** app để áp dụng đầy đủ các module mới.
+> - Nhiều API key tạo trong *cùng một* tài khoản Groq dùng chung pool hạn mức; để tăng hạn mức thực tế, cần dùng key từ các tài khoản khác nhau.
+> - Tuyệt đối không commit `.streamlit/secrets.toml` hoặc dán key thật vào mã nguồn (file này đã nằm trong `.gitignore`).
+
+---
+
+## Tùy chọn nâng cấp Embedding (`BAAI/bge-m3`, 1024d) & Giới hạn RAM
+
+| Model Embedding | Số chiều | RAM ước tính | Ghi chú |
+|---|---|---|---|
+| `paraphrase-multilingual-MiniLM-L12-v2` *(mặc định)* | 384d | ~470 MB | An toàn cho Streamlit Cloud free (~1 GB RAM) |
+| `BAAI/bge-m3` | 1024d | > 2.2 GB | Nâng **Hit@5 từ 0.434 → 0.697 (+61%)** trên kho song ngữ Việt–Anh; cần gói RAM > 2.2 GB |
+
+Để chuyển sang `bge-m3`:
+1. Đặt `index.faiss` và `index.pkl` tương ứng vào `data/faiss_index_bge_m3/`.
+2. Thêm `EMBED_MODEL = "BAAI/bge-m3"` vào Secrets (code tự động trỏ sang `data/faiss_index_bge_m3` và bật `normalize_embeddings=True`).
+3. **Manage app → Reboot** và kiểm tra KPI *Không gian embedding* tại trang **Kho tài liệu** hiển thị `1024d · BAAI/bge-m3`.
+
+---
+
+## Khóa phiên bản thư viện (khi build Cloud gặp xung đột)
+
+`requirements.txt` đang giữ phiên bản `langchain-*` linh hoạt. Nếu quá trình build trên Cloud gặp lỗi xung đột phụ thuộc, chạy đoạn sau trong môi trường Colab đang chạy ổn định để lấy version cố định:
 
 ```python
 import importlib.metadata as md
-for p in ["torch","streamlit","langchain","langchain-classic","langchain-community",
-          "langchain-core","langchain-groq","langchain-huggingface",
-          "faiss-cpu","rank-bm25","sentence-transformers"]:
-    try: print(f"{p}=={md.version(p)}")
-    except Exception: print(f"# {p}: not installed")
+for p in ["torch", "streamlit", "langchain", "langchain-classic", "langchain-community",
+          "langchain-core", "langchain-groq", "langchain-huggingface",
+          "faiss-cpu", "rank-bm25", "sentence-transformers", "cohere"]:
+    try:
+        print(f"{p}=={md.version(p)}")
+    except Exception:
+        print(f"# {p}: not installed")
 ```
-
-Dán các dòng `pkg==version` vào `requirements.txt` (giữ nguyên dòng `--extra-index-url`
-và đổi `torch==...` thành bản `+cpu` tương ứng nếu có).
-
-## Giới hạn RAM (đọc kỹ)
-
-Streamlit Cloud free ~1GB RAM. Bản này đã bỏ reranker để nhẹ nhất, nhưng model embedding
-vẫn ~470MB. Nếu app bị **OOM / restart liên tục**:
-- Đừng đặt `RERANK_PROVIDER=local` trên free (model reranker ~2GB). Dùng `cohere` (API) hoặc `off`.
-- Cân nhắc nâng cấp gói trả phí, hoặc chạy web trên máy/Colab như cũ.
-
-## Bật embedder bge-m3 (cross-lingual, CẦN RAM > 2.2GB)
-
-Mặc định web dùng MiniLM-L12 (384d, ~470MB) — an toàn cho free. Benchmark cho thấy
-`BAAI/bge-m3` nâng **Hit@5 0.434 → 0.697 (+61%)** vì corpus song ngữ Việt–Anh hỏi tiếng Việt
-nhưng đáp án nằm trong sách tiếng Anh. Chỉ bật khi có RAM đủ, theo 5 bước:
-
-1. Đặt **2 file index bge-m3 (1024d)** vào `data/faiss_index_bge_m3/` (thư mục đã có sẵn `manifest.json`): `index.faiss` + `index.pkl`.
-2. Trong **Secrets** thêm `EMBED_MODEL = BAAI/bge-m3`. Code **tự suy**: thư mục index → `faiss_index_bge_m3`
-   và `normalize_embeddings=True` (khớp cách build index cosine của bge-m3). Muốn gán tay: `INDEX_PATH`, `EMBED_NORMALIZE`.
-3. **Nâng gói RAM trả phí** — bge-m3 ~2.2GB >> free ~1GB, bật trên free sẽ OOM/reboot loop.
-4. **Commit → push → Manage app → Reboot**, rồi verify panel "Kho tài liệu": KPI *Không gian embedding* phải hiện `1024d · BAAI/bge-m3`.
-5. Quay lại MiniLM: xóa `EMBED_MODEL` khỏi Secrets (default đã là MiniLM, mọi thứ tự về cũ).
-
-Ghi chú: Streamlit vẫn **CPU-only**, nên query embed bge-m3 chậm hơn MiniLM (vài trăm ms–1s/câu) nhưng
-chấp nhận được vì web **chỉ đọc** index, không build ở web. Index 1024d và 384d không dùng lẫn được
-(lệch chiều) — luôn cặp đúng `EMBED_MODEL` với thư mục index tương ứng.
