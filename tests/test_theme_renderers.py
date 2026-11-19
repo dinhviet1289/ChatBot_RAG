@@ -67,11 +67,12 @@ class TestThemeRenderers(unittest.TestCase):
             "top_k": 5,
             "retrieve_n": 20,
             "llm_model": "qwen/qwen3.8-27b<script>",
-            "embed_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+            "embed_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2<script>",
             "groq_keys": ["gsk_secret_alpha_111", "gsk_secret_beta_222"],
         }
         out = render_system_card_html(cfg)
-        self.assertIn("2 key", out)
+        self.assertIn(">Groq<", out)
+        self.assertNotIn("qwen/qwen3.8-27b", out)
         self.assertNotIn("gsk_secret_alpha_111", out)
         self.assertNotIn("gsk_secret_beta_222", out)
         self.assertNotIn("<script>", out)
@@ -197,6 +198,63 @@ class TestThemeRenderers(unittest.TestCase):
         card_vi = render_doc_card_html(rows[1], max_chunks=42, total_chunks=64)
         self.assertIn(">VI<", card_vi)
         self.assertIn("Vector Index", card_vi)
+
+    def test_render_citation_box_shows_rank_badge_and_rerank_shift(self):
+        sources = [
+            {
+                "doc_id": "build_llm",
+                "doc_title": "Build a Large Language Model (From Scratch)",
+                "trang": "25",
+                "url": None,
+                "snippet": "LLMs utilize an...",
+                "rerank_score": 0.888,
+                "initial_rank": 5,
+                "final_rank": 1,
+                "rank_delta": 4,
+            },
+            {
+                "doc_id": "elc3008_ch03",
+                "doc_title": "Slide ELC3008",
+                "trang": "12",
+                "url": None,
+                "snippet": "DFS vs BFS",
+                "rerank_score": 0.497,
+                "initial_rank": 1,
+                "final_rank": 2,
+                "rank_delta": -1,
+            },
+            {
+                "doc_id": "cs188_ch01_search",
+                "doc_title": "CS188 Berkeley",
+                "trang": "9",
+                "url": None,
+                "snippet": "Fringe FIFO",
+                "rerank_score": 0.428,
+                "initial_rank": 3,
+                "final_rank": 3,
+                "rank_delta": 0,
+            },
+        ]
+        out = render_citation_box_html(sources)
+        self.assertIn('<span class="rag-rank-badge rag-mono">#1</span>', out)
+        self.assertIn('#5 → #1', out)
+        self.assertIn('▲ +4', out)
+        self.assertIn('▼ -1', out)
+        self.assertIn('● 0', out)
+        self.assertIn('class="rag-cite-score-wrap"', out)
+        self.assertNotIn('[1]', out)
+
+        legacy_out = render_citation_box_html([{
+            "doc_id": "elc3008_ch01",
+            "doc_title": "Slide ELC3008",
+            "trang": "3",
+            "url": None,
+            "snippet": "Legacy snippet",
+            "rerank_score": None,
+        }])
+        self.assertIn('<span class="rag-rank-badge rag-mono">#1</span>', legacy_out)
+        self.assertNotIn("rag-rank-flow", legacy_out)
+        self.assertNotIn("rag-delta-", legacy_out)
 
 
 if __name__ == "__main__":

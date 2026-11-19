@@ -53,7 +53,7 @@ with st.sidebar:
     st.markdown(
         '<div class="rag-brand">'
         '<span class="rag-brand-kicker">ELC3008 · AI LAB</span>'
-        '<div class="rag-brand-title">Trợ lý RAG DUE</div>'
+        '<div class="rag-brand-title">Trợ lý học tập DUE</div>'
         '<div class="rag-brand-sub">Trí tuệ nhân tạo trong kinh doanh · ĐH Kinh tế</div>'
         '</div>',
         unsafe_allow_html=True,

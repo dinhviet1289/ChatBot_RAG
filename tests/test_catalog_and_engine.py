@@ -151,9 +151,19 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0]["snippet"], "chunk mạnh")
         self.assertEqual(out[0]["rerank_score"], 0.9)
+        self.assertEqual(out[0]["initial_rank"], 1)
+        self.assertEqual(out[0]["final_rank"], 2)
+        self.assertEqual(out[0]["rank_delta"], -1)
         self.assertEqual(out[1]["doc_id"], "elc3008_ch02")
+        self.assertEqual(out[1]["initial_rank"], 2)
+        self.assertEqual(out[1]["final_rank"], 3)
+        self.assertEqual(out[1]["rank_delta"], -1)
         for src in out:
-            self.assertEqual(set(src), {"doc_id", "doc_title", "trang", "url", "snippet", "rerank_score"})
+            self.assertEqual(
+                set(src),
+                {"doc_id", "doc_title", "trang", "url", "snippet", "rerank_score",
+                 "initial_rank", "final_rank", "rank_delta"},
+            )
         self.assertEqual(sources_from_inspection([]), [])
 
     def test_describe_llm_error_turns_rate_limit_into_action(self):

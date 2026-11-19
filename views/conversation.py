@@ -1,6 +1,6 @@
 """Màn hình hội thoại — mở từ sidebar (nút tạo mới, chọn cuộc hội thoại, hoặc
 "Hỏi thử tài liệu này" bên Kho tài liệu), không nằm trong nav. Ô chat dưới đáy,
-Enter để gửi; mỗi lượt được lưu kèm telemetry, trích dẫn và chi tiết truy hồi.
+Enter để gửi; mỗi lượt được lưu kèm telemetry, trích dẫn và biến động hạng sau rerank.
 """
 
 import html
@@ -29,35 +29,9 @@ from ui.state import (
     prepare_regenerate,
 )
 from ui.theme import render_citation_box_html, render_turn_telemetry_html
-from views.inspector import render_retrieval_panel
 
 USER_AVATAR = ":material/person:"
 AI_AVATAR = ":material/school:"
-
-
-def _compact_retrieval(res):
-    """Keep retrieval metrics + Top-K snippets for turn history without bloating RAM."""
-    if not res:
-        return None
-    selected = []
-    for item in res.get("selected") or []:
-        compact = dict(item)
-        compact["snippet"] = (item.get("snippet") or "")[:260]
-        selected.append(compact)
-    candidates = [
-        {k: c.get(k) for k in ("doc_id", "doc_title", "trang", "url",
-                               "initial_rank", "final_rank", "rank_delta", "rerank_score")}
-        for c in (res.get("candidates") or [])
-    ]
-    return {
-        "question": res.get("question"),
-        "retrieve_ms": res.get("retrieve_ms"),
-        "rerank_ms": res.get("rerank_ms"),
-        "rerank_enabled": res.get("rerank_enabled"),
-        "total_candidates": res.get("total_candidates"),
-        "candidates": candidates,
-        "selected": selected,
-    }
 
 
 def _build_telemetry(cfg, res, served, keys, latency_s):
@@ -90,9 +64,6 @@ def _render_history(conv):
                 if msg.get("sources"):
                     st.markdown(render_citation_box_html(msg["sources"]),
                                 unsafe_allow_html=True)
-                if msg.get("retrieval"):
-                    with st.expander("Chi tiết truy hồi của lượt này"):
-                        render_retrieval_panel(msg["retrieval"])
 
 
 def _render_empty_state(state, bundle=None):
@@ -146,7 +117,7 @@ def render_conversation_view(bundle):
         with header_slot.container():
             st.markdown(f"### {conv['title']}")
             st.caption("Enter để gửi câu hỏi. Mỗi lượt lưu kèm độ trễ truy hồi, nguồn trang "
-                       "và bảng đối chiếu Stage-1 / Stage-2.")
+                       "và biến động hạng sau rerank.")
 
     _render_history(conv)
 
@@ -178,7 +149,7 @@ def render_conversation_view(bundle):
         with header_slot.container():
             st.markdown(f"### {conv['title']}")
             st.caption("Enter để gửi câu hỏi. Mỗi lượt lưu kèm độ trễ truy hồi, nguồn trang "
-                       "và bảng đối chiếu Stage-1 / Stage-2.")
+                       "và biến động hạng sau rerank.")
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
@@ -210,13 +181,10 @@ def render_conversation_view(bundle):
             st.markdown(render_turn_telemetry_html(telemetry), unsafe_allow_html=True)
             if sources:
                 st.markdown(render_citation_box_html(sources), unsafe_allow_html=True)
-            with st.expander("Chi tiết truy hồi của lượt này"):
-                render_retrieval_panel(res)
             append_assistant_turn(
                 state, answer, sources,
                 latency_s=total_s,
                 telemetry=telemetry,
-                retrieval=_compact_retrieval(res),
             )
         except Exception as exc:
             answer = describe_llm_error(exc)
@@ -226,7 +194,6 @@ def render_conversation_view(bundle):
             append_assistant_turn(
                 state, answer, sources,
                 latency_s=total_s,
-                retrieval=_compact_retrieval(res),
             )
             if st.button(":material/refresh: Thử lại", key="retry_after_error"):
                 again = prepare_regenerate(state)

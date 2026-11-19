@@ -113,6 +113,21 @@ def render_citation_box_html(sources):
         trang = str(s.get("trang") or "").strip()
         label = _safe_url_label(title_esc, s.get("url"))
 
+        raw_init = s.get("initial_rank")
+        raw_final = s.get("final_rank")
+        has_init = isinstance(raw_init, int) and not isinstance(raw_init, bool) and raw_init > 0
+        has_final = isinstance(raw_final, int) and not isinstance(raw_final, bool) and raw_final > 0
+        rank_num = raw_final if has_final else i
+        rank_flow_html = ""
+        if has_init and has_final:
+            raw_delta = s.get("rank_delta")
+            delta = (raw_delta if isinstance(raw_delta, int) and not isinstance(raw_delta, bool)
+                     else raw_init - raw_final)
+            rank_flow_html = (
+                f'<span class="rag-rank-flow rag-mono">#{raw_init} → #{raw_final}</span>'
+                f'{_delta_badge(delta)}'
+            )
+
         raw_score = s.get("rerank_score")
         score = _fmt_score(raw_score, decimals=3)
         pct = _score_pct(raw_score)
@@ -125,6 +140,10 @@ def render_citation_box_html(sources):
             )
         score_html = (
             f'<span class="rag-cite-score">↗ {score}</span>' if score else ""
+        )
+        score_wrap_html = (
+            f'<span class="rag-cite-score-wrap">{meter_html}{score_html}</span>'
+            if (meter_html or score_html) else ""
         )
         page_html = (
             f'<span class="rag-cite-page">Trang {html.escape(trang)}</span>'
@@ -140,10 +159,10 @@ def render_citation_box_html(sources):
         items.append(
             f'<li class="rag-cite-item">'
             f'<div class="rag-cite-row">'
-            f'<span class="rag-cite-num">[{i}]</span>'
+            f'<span class="rag-rank-badge rag-mono">#{rank_num}</span>'
             f'<span class="rag-cite-title">{label}</span>'
             f'<span class="rag-cite-id">{doc_id_esc}</span>'
-            f'{page_html}{meter_html}{score_html}'
+            f'{page_html}{rank_flow_html}{score_wrap_html}'
             f'</div>'
             f'{snippet_html}'
             f'</li>'
@@ -168,11 +187,9 @@ def render_system_card_html(cfg):
     rerank_model = str(cfg.get("rerank_model") or "").strip()
     top_k = html.escape(str(cfg.get("top_k") or 5))
     retrieve_n = html.escape(str(cfg.get("retrieve_n") or 20))
-    llm_model = html.escape(str(cfg.get("llm_model") or "—"))
     embed_raw = str(cfg.get("embed_model") or "MiniLM-L12-v2")
     embed_short = html.escape(embed_raw.split("/")[-1])
     embed_dim = int(cfg.get("embed_dim") or 384)
-    key_count = len(cfg.get("groq_keys") or [])
 
     dot_cls = "rag-sys-dot is-on" if rerank_active else "rag-sys-dot is-off"
     if rerank_active:
@@ -192,7 +209,7 @@ def render_system_card_html(cfg):
         f'<div class="rag-sys-grid">'
         f'<div class="rag-sys-row"><span>Stage-1</span><span class="rag-mono">BM25 0.3 + FAISS 0.7 · N={retrieve_n}</span></div>'
         f'<div class="rag-sys-row"><span>Stage-2</span><span class="rag-mono">Top-{top_k}</span></div>'
-        f'<div class="rag-sys-row"><span>LLM</span><span class="rag-mono">{llm_model} ({key_count} key)</span></div>'
+        f'<div class="rag-sys-row"><span>LLM</span><span class="rag-mono">Groq</span></div>'
         f'<div class="rag-sys-row"><span>Embed</span><span class="rag-mono">{embed_dim}d · {embed_short}</span></div>'
         f'</div></div>'
     )
@@ -678,8 +695,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .rag-cite-id { font-family:var(--font-mono); color:var(--muted); font-size:0.75rem;
   background:rgba(16,22,34,0.65); border:1px solid var(--border); border-radius:6px; padding:1px 6px; }
 .rag-cite-page { color:var(--muted); font-size:0.78rem; }
+.rag-cite-score-wrap { display:inline-flex; align-items:center; gap:6px; margin-left:auto; }
 .rag-cite-meter { display:inline-block; width:54px; height:5px; background:rgba(148,163,184,0.18);
   border-radius:999px; overflow:hidden; vertical-align:middle; margin-left:auto; }
+.rag-cite-score-wrap .rag-cite-meter { margin-left:0; }
 .rag-cite-fill { display:block; height:100%; border-radius:999px;
   background:linear-gradient(90deg, var(--primary), var(--info)); }
 .rag-cite-score { font-family:var(--font-mono); background:var(--active-pill); color:var(--link);
