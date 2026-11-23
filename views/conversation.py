@@ -31,6 +31,7 @@ from ui.state import (
 from ui.theme import (
     normalize_latex_for_streamlit,
     render_citation_box_html,
+    render_page_header_html,
     render_turn_telemetry_html,
 )
 
@@ -54,6 +55,29 @@ def _build_telemetry(cfg, res, served, keys, latency_s):
         "fell_back": bool((served or {}).get("fell_back")),
         "configured_model": cfg.get("llm_model") or "",
     }
+
+
+def _render_conv_header(conv, bundle):
+    cfg = (bundle or {}).get("config") or {}
+    embed_dim = int(cfg.get("embed_dim") or 384)
+    provider = str(cfg.get("rerank_provider") or "off").strip().lower()
+    rerank_chip = ("Cohere Rerank", "success") if provider == "cohere" else (
+        ("Local Rerank", "success") if provider == "local" else ("Stage-1 Only", "warn")
+    )
+    llm_short = str(cfg.get("llm_model") or "Groq").split("/")[-1]
+    chips = [
+        (llm_short, "primary"),
+        rerank_chip,
+        (f"BM25 + FAISS {embed_dim}d", "info"),
+    ]
+    st.markdown(
+        render_page_header_html(
+            conv["title"],
+            "Enter để gửi câu hỏi · Mỗi lượt lưu kèm độ trễ truy hồi, nguồn trang và biến động hạng sau rerank.",
+            chips,
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 def _render_history(conv):
@@ -123,9 +147,7 @@ def render_conversation_view(bundle):
     header_slot = st.empty()
     if conv["messages"]:
         with header_slot.container():
-            st.markdown(f"### {conv['title']}")
-            st.caption("Enter để gửi câu hỏi. Mỗi lượt lưu kèm độ trễ truy hồi, nguồn trang "
-                       "và biến động hạng sau rerank.")
+            _render_conv_header(conv, bundle)
 
     _render_history(conv)
 
@@ -155,9 +177,7 @@ def render_conversation_view(bundle):
     append_user_turn(state, prompt)
     if was_empty:
         with header_slot.container():
-            st.markdown(f"### {conv['title']}")
-            st.caption("Enter để gửi câu hỏi. Mỗi lượt lưu kèm độ trễ truy hồi, nguồn trang "
-                       "và biến động hạng sau rerank.")
+            _render_conv_header(conv, bundle)
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
