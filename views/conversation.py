@@ -125,19 +125,10 @@ def _render_empty_state(state, bundle=None):
     cols = st.columns(2)
     for i, card in enumerate(SUGGESTED_CARDS):
         with cols[i % 2]:
-            with st.container(border=True):
-                st.markdown(
-                    f'<div class="rag-sug-head">'
-                    f'<span><strong>{html.escape(card["title"])}</strong></span>'
-                    f'<span class="rag-sug-idx">0{i + 1}</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-                st.caption(card["subtitle"])
-                if st.button(f":material/{card['icon']}: {card['prompt']}",
-                             key=f"sug_{i}", width="stretch"):
-                    # Không rerun: pending_prompt được tiêu ngay trong cùng lần chạy.
-                    state["pending_prompt"] = card["prompt"]
+            if st.button(f":material/{card['icon']}: **{card['title']}**  \n{card['prompt']}",
+                         key=f"sug_{i}", width="stretch"):
+                # Không rerun: pending_prompt được tiêu ngay trong cùng lần chạy.
+                state["pending_prompt"] = card["prompt"]
 
 
 def render_conversation_view(bundle):

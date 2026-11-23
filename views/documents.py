@@ -1,4 +1,4 @@
-"""Documents view: header, corpus KPIs, distribution bar, category filter, search, 3-col cards."""
+"""Documents view: header, corpus KPIs, distribution bar, compact 1-row filter, 3-col cards."""
 
 import streamlit as st
 
@@ -40,18 +40,22 @@ def render_documents_view(bundle):
         embed_model=embed_model,
     ), unsafe_allow_html=True)
 
-    f1, f2 = st.columns([3, 2], vertical_alignment="top")
+    f1, f2, f3 = st.columns([2.4, 2.1, 1.0], vertical_alignment="bottom")
     with f1:
-        sel = st.pills("Nhóm tài liệu", ["Tất cả"] + list(CATEGORY_ORDER),
-                       default="Tất cả", key="doc_cat")
-    with f2:
         query = st.text_input("Tìm tài liệu",
-                              placeholder="Tìm theo tên, doc_id, EN/VI...",
+                              placeholder="Tìm theo tên hoặc doc_id...",
                               key="doc_q")
+    with f2:
+        sel = st.selectbox("Nhóm học phần", ["Tất cả"] + list(CATEGORY_ORDER),
+                           key="doc_cat")
+    with f3:
+        lang_sel = st.selectbox("Ngôn ngữ", ["Tất cả", "VI", "EN"],
+                                key="doc_lang")
 
     q = (query or "").strip().lower()
     filtered = [r for r in rows
                 if (sel in (None, "Tất cả") or r["category"] == sel)
+                and (lang_sel in (None, "Tất cả") or r.get("lang", "").upper() == lang_sel)
                 and (not q or q in r["title"].lower()
                      or q in r["doc_id"].lower()
                      or q in r["category"].lower()
