@@ -1650,9 +1650,13 @@ _FONT_LINKS_HTML = (
 
 
 def _global_css():
-    return _CSS_TEMPLATE.substitute(**PALETTE)
+    return "\n".join(
+        line for line in _CSS_TEMPLATE.substitute(**PALETTE).splitlines() if line.strip()
+    )
 
 
 def inject_global_css():
     import streamlit as st
-    st.markdown(f"{_FONT_LINKS_HTML}<style>{_global_css()}</style>", unsafe_allow_html=True)
+
+    st.markdown(_FONT_LINKS_HTML, unsafe_allow_html=True)
+    st.markdown(f"<style>\n{_global_css()}\n</style>", unsafe_allow_html=True)

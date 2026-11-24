@@ -449,6 +449,34 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn('[data-testid="stChatMessage"] { animation:rag-rise', css)
         self.assertIn("background:#FFFFFF; border:1px solid var(--border); border-radius:16px;", css)
 
+    def test_inject_global_css_separates_links_and_keeps_style_block_contiguous(self):
+        import sys
+        import types
+        from unittest.mock import patch
+
+        from ui.theme import inject_global_css
+
+        css = _global_css()
+        self.assertNotIn("\n\n", css)
+
+        calls = []
+        fake_st = types.SimpleNamespace(
+            markdown=lambda body, unsafe_allow_html=False: calls.append((body, unsafe_allow_html))
+        )
+        with patch.dict(sys.modules, {"streamlit": fake_st}):
+            inject_global_css()
+
+        self.assertEqual(len(calls), 2)
+        links_body, links_unsafe = calls[0]
+        style_body, style_unsafe = calls[1]
+        self.assertTrue(links_unsafe)
+        self.assertTrue(style_unsafe)
+        self.assertIn("<link", links_body)
+        self.assertNotIn("<style>", links_body)
+        self.assertTrue(style_body.startswith("<style>"))
+        self.assertTrue(style_body.endswith("</style>"))
+        self.assertNotIn("\n\n", style_body)
+
 
 if __name__ == "__main__":
     unittest.main()
