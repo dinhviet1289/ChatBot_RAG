@@ -111,9 +111,14 @@ with st.sidebar:
     st.caption("Hệ thống")
     st.markdown(render_system_card_html(bundle["config"]), unsafe_allow_html=True)
     ram = _ram_mb()
-    ram_txt = f"{ram:.0f} MB" if ram is not None else "—"
+    if ram is None:
+        ram_cls, ram_txt = "", "—"
+    else:
+        ram_cls = "is-danger" if ram >= 850 else ("is-warn" if ram >= 650 else "is-ok")
+        ram_txt = f"{ram:.0f} / 1024 MB"
     st.markdown(
-        f'<div class="rag-ram-caption"><span>RAM app:</span><span>{ram_txt}</span></div>',
+        f'<div class="rag-ram-caption"><span>RAM app:</span>'
+        f'<span class="rag-ram-val {ram_cls}">{ram_txt}</span></div>',
         unsafe_allow_html=True,
     )
 

@@ -400,6 +400,40 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn("Rerank lỗi · Stage-1", out)
         self.assertIn("rag-tel-warn", out)
 
+    def test_light_palette_meets_wcag_aa_contrast(self):
+        def rel_lum(hex_c):
+            h = hex_c.lstrip("#")
+            rgb = [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+            lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+            return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+        def contrast(c1, c2):
+            l1, l2 = rel_lum(c1), rel_lum(c2)
+            return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
+
+        pairs = [
+            (PALETTE["muted"], PALETTE["sidebar"]),
+            (PALETTE["muted"], PALETTE["card"]),
+            (PALETTE["warning"], "#FFFBEB"),
+            (PALETTE["success"], "#ECFDF5"),
+            (PALETTE["info"], "#F0F9FF"),
+            (PALETTE["danger"], "#FEF2F2"),
+            (PALETTE["link"], PALETTE["active_pill"]),
+            ("#FFFFFF", PALETTE["primary"]),
+        ]
+        for fg, bg in pairs:
+            self.assertGreaterEqual(contrast(fg, bg), 4.5, f"Low contrast for {fg} on {bg}")
+
+    def test_global_css_covers_form_submit_markdown_tables_and_visible_delete_targets(self):
+        css = _global_css()
+        self.assertIn("stBaseButton-primaryFormSubmit", css)
+        self.assertIn('[data-testid="stForm"]', css)
+        self.assertIn("@media (max-width: 1120px)", css)
+        self.assertIn("text-wrap:balance", css)
+        self.assertIn('[data-testid="stChatMessage"] table', css)
+        self.assertIn("opacity:0.78", css)
+        self.assertNotIn("opacity:0.45", css)
+
 
 if __name__ == "__main__":
     unittest.main()

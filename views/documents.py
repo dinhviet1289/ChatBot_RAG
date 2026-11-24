@@ -1,4 +1,4 @@
-"""Documents view: header, corpus KPIs, distribution bar, compact 1-row filter, 3-col cards."""
+"""Documents view: header, corpus KPIs, distribution bar, compact 1-row filter, 2-col cards."""
 
 import streamlit as st
 
@@ -9,6 +9,12 @@ from ui.theme import (
     render_doc_card_html,
     render_page_header_html,
 )
+
+
+def _reset_doc_filters():
+    st.session_state["doc_q"] = ""
+    st.session_state["doc_cat"] = "Tất cả"
+    st.session_state["doc_lang"] = "Tất cả"
 
 
 def render_documents_view(bundle):
@@ -60,15 +66,24 @@ def render_documents_view(bundle):
                      or q in r["doc_id"].lower()
                      or q in r["category"].lower()
                      or q == r.get("lang", "").lower())]
-    st.caption(f"Hiển thị {len(filtered)} / {len(rows)} tài liệu khớp bộ lọc")
+    has_filter = bool(q or (sel not in (None, "Tất cả")) or (lang_sel not in (None, "Tất cả")))
+    if has_filter:
+        c_cnt, c_rst = st.columns([4, 1], vertical_alignment="center")
+        with c_cnt:
+            st.caption(f"Hiển thị {len(filtered)} / {len(rows)} tài liệu khớp bộ lọc")
+        with c_rst:
+            st.button("Đặt lại bộ lọc", key="doc_reset", width="stretch",
+                      on_click=_reset_doc_filters)
+    else:
+        st.caption(f"Hiển thị {len(filtered)} / {len(rows)} tài liệu khớp bộ lọc")
 
     if not filtered:
         st.info("Không tìm thấy tài liệu nào khớp với bộ lọc hoặc từ khóa hiện tại.")
         return
 
-    cols = st.columns(3)
+    cols = st.columns(2)
     for i, r in enumerate(filtered):
-        with cols[i % 3]:
+        with cols[i % 2]:
             with st.container(border=True):
                 st.markdown(render_doc_card_html(r, max_chunks, total_chunks),
                             unsafe_allow_html=True)

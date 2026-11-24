@@ -114,7 +114,7 @@ def _render_empty_state(state, bundle=None):
     embed_dim = int(cfg.get("embed_dim") or 384)
     st.markdown(
         f'<div class="rag-hero">'
-        f'<span class="rag-hero-badge">ELC3008 KNOWLEDGE OBSERVATORY</span>'
+        f'<span class="rag-hero-badge">ELC3008 · TRỢ LÝ ÔN TẬP AI</span>'
         f'<div class="rag-hero-title">Bạn muốn ôn tập phần nào?</div>'
         f'<div class="rag-hero-sub">Chọn một chủ đề mẫu hoặc nhập câu hỏi bên dưới — '
         f'mỗi câu trả lời đều kèm nguồn trang &amp; số liệu truy hồi.</div>'
