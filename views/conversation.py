@@ -48,6 +48,7 @@ def _build_telemetry(cfg, res, served, keys, latency_s):
         "retrieve_ms": res.get("retrieve_ms"),
         "rerank_ms": res.get("rerank_ms"),
         "rerank_enabled": bool(res.get("rerank_enabled")),
+        "rerank_fallback": bool(res.get("rerank_fallback")),
         "selected_count": len(res.get("selected") or []),
         "total_candidates": int(res.get("total_candidates") or 0),
         "model": (served or {}).get("model") or cfg.get("llm_model") or "",
@@ -84,6 +85,9 @@ def _render_history(conv):
     for msg in conv["messages"]:
         avatar = USER_AVATAR if msg["role"] == "user" else AI_AVATAR
         with st.chat_message(msg["role"], avatar=avatar):
+            if msg["role"] == "assistant" and msg.get("is_error"):
+                st.error(msg["content"])
+                continue
             content = (normalize_latex_for_streamlit(msg["content"])
                        if msg["role"] == "assistant" else msg["content"])
             st.markdown(content)
@@ -142,8 +146,9 @@ def render_conversation_view(bundle):
 
     _render_history(conv)
 
+    regen_slot = st.empty()
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
-        if st.button(":material/refresh: Tạo lại câu trả lời", key="regen"):
+        if regen_slot.button(":material/refresh: Tạo lại câu trả lời", key="regen"):
             q = prepare_regenerate(state)
             if q:
                 state["pending_prompt"] = q
@@ -163,6 +168,7 @@ def render_conversation_view(bundle):
         return
 
     empty_slot.empty()
+    regen_slot.empty()
     was_empty = not conv["messages"]
     started = time.perf_counter()
     append_user_turn(state, prompt)
@@ -172,7 +178,7 @@ def render_conversation_view(bundle):
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
-    keys = bundle["config"]["groq_keys"]
+    keys = bundle.get("groq_keys") if "groq_keys" in bundle else (bundle.get("config") or {}).get("groq_keys") or []
     served = {}
     with st.chat_message("assistant", avatar=AI_AVATAR):
         stage_slot = st.empty()
@@ -183,11 +189,11 @@ def render_conversation_view(bundle):
             '</div>',
             unsafe_allow_html=True,
         )
-        res = inspect_retrieval(bundle, prompt)
-        stage_slot.empty()
-
-        ctx = format_selected_context(res["selected"])
         try:
+            res = inspect_retrieval(bundle, prompt)
+            stage_slot.empty()
+
+            ctx = format_selected_context(res["selected"])
             answer_slot = st.empty()
             with answer_slot.container():
                 raw_answer = st.write_stream(stream_answer(
@@ -211,17 +217,15 @@ def render_conversation_view(bundle):
                 latency_s=total_s,
                 telemetry=telemetry,
             )
+            st.rerun()
         except Exception as exc:
+            stage_slot.empty()
             answer = describe_llm_error(exc)
-            sources = []
             total_s = time.perf_counter() - started
             st.error(answer)
             append_assistant_turn(
-                state, answer, sources,
+                state, answer, [],
                 latency_s=total_s,
+                is_error=True,
             )
-            if st.button(":material/refresh: Thử lại", key="retry_after_error"):
-                again = prepare_regenerate(state)
-                if again:
-                    state["pending_prompt"] = again
-                    st.rerun()
+            st.rerun()

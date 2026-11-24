@@ -57,13 +57,14 @@ def render_inspector_view(bundle):
     auto_run = bool(st.session_state.pop("dbg_auto", False))
     with left:
         with st.container(border=True):
-            dq = st.text_input(
-                "Câu hỏi kiểm tra",
-                key="dbg_q",
-                placeholder="Nhập câu hỏi để xem tầng truy hồi chọn tài liệu nào...",
-            )
-            clicked = st.button(":material/science: Chạy kiểm tra", key="dbg_run",
-                                type="primary", width="stretch")
+            with st.form("dbg_form", border=False):
+                dq = st.text_input(
+                    "Câu hỏi kiểm tra",
+                    key="dbg_q",
+                    placeholder="Nhập câu hỏi để xem tầng truy hồi chọn tài liệu nào...",
+                )
+                clicked = st.form_submit_button(":material/science: Chạy kiểm tra",
+                                                type="primary", width="stretch")
             st.caption("Thử nhanh mẫu chuẩn")
             for label, sample_q in SAMPLE_PROBES:
                 st.button(
@@ -79,8 +80,13 @@ def render_inspector_view(bundle):
     if (clicked or auto_run) and dq:
         with right:
             with st.spinner("Đang truy hồi tài liệu..."):
-                res = inspect_retrieval(bundle, dq)
-            st.session_state["dbg_res"] = res
+                try:
+                    res = inspect_retrieval(bundle, dq)
+                except Exception as exc:
+                    st.error(f"Không truy hồi được ({type(exc).__name__}).")
+                    res = st.session_state.get("dbg_res")
+                else:
+                    st.session_state["dbg_res"] = res
     elif st.session_state.get("dbg_res"):
         res = st.session_state["dbg_res"]
 

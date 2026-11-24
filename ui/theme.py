@@ -645,6 +645,8 @@ def render_turn_telemetry_html(telemetry):
         rer_ms = telemetry.get("rerank_ms")
         if isinstance(rer_ms, (int, float)) and math.isfinite(rer_ms):
             chips.append(f'<span class="rag-tel-chip">Rerank {float(rer_ms):.0f}ms</span>')
+    elif telemetry.get("rerank_fallback"):
+        chips.append('<span class="rag-tel-chip rag-tel-warn">Rerank lỗi · Stage-1</span>')
     else:
         chips.append('<span class="rag-tel-chip">Rerank TẮT</span>')
 
@@ -685,6 +687,8 @@ def render_retrieval_summary_html(res):
     ret_ms = float(res.get("retrieve_ms") or 0.0)
     rer_ms = float(res.get("rerank_ms") or 0.0)
     rer_on = bool(res.get("rerank_enabled"))
+    rer_fallback = bool(res.get("rerank_fallback"))
+    provider = str(res.get("rerank_provider") or "").strip().lower()
     candidates = list(res.get("candidates") or [])
     selected = list(res.get("selected") or [])
     total_cand = int(res.get("total_candidates") if res.get("total_candidates") is not None else len(candidates))
@@ -697,7 +701,13 @@ def render_retrieval_summary_html(res):
         rer_w = round(100.0 - ret_w, 1)
         ret_w = round(ret_w, 1)
 
-    rerank_val = f"{rer_ms:.0f} ms" if rer_on else "TẮT"
+    rerank_val = f"{rer_ms:.0f} ms" if rer_on else ("LỖI" if rer_fallback else "TẮT")
+    if rer_on:
+        rerank_sub = "Local Cross-Encoder" if provider == "local" else "Cohere Cross-Encoder"
+    elif rer_fallback:
+        rerank_sub = "Rerank lỗi — giữ thứ tự Stage-1"
+    else:
+        rerank_sub = "Bỏ qua rerank"
     return (
         f'<div class="rag-lab-summary">'
         f'<div class="rag-lab-stat">'
@@ -708,7 +718,7 @@ def render_retrieval_summary_html(res):
         f'<div class="rag-lab-stat">'
         f'<div class="rag-lab-k">STAGE-2 RERANK</div>'
         f'<div class="rag-lab-v rag-mono">{rerank_val}</div>'
-        f'<div class="rag-lab-s">{"Cohere Cross-Encoder" if rer_on else "Bỏ qua rerank"}</div>'
+        f'<div class="rag-lab-s">{rerank_sub}</div>'
         f'</div>'
         f'<div class="rag-lab-stat">'
         f'<div class="rag-lab-k">MẬT ĐỘ LỌC</div>'

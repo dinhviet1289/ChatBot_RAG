@@ -349,6 +349,57 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn('[data-testid="stChatMessage"] [data-testid="stExpander"]', css)
         self.assertIn(".katex-display", css)
 
+    def test_render_citation_box_rejects_unsafe_urls(self):
+        out = render_citation_box_html([
+            {"doc_id": "a", "doc_title": "Doc JS", "url": "javascript:alert(1)", "snippet": "s"},
+            {"doc_id": "b", "doc_title": "Doc Data", "url": "data:text/html,<script>", "snippet": "s"},
+        ])
+        self.assertNotIn("<a ", out)
+        self.assertNotIn("javascript:", out)
+        self.assertNotIn("data:text/html", out)
+        self.assertIn("Doc JS", out)
+
+    def test_retrieval_panel_distinguishes_local_provider_and_rerank_fallback(self):
+        local_out = render_retrieval_panel_html({
+            "retrieve_ms": 20.0,
+            "rerank_ms": 150.0,
+            "rerank_enabled": True,
+            "rerank_provider": "local",
+            "total_candidates": 1,
+            "selected": [{"doc_id": "a", "doc_title": "Doc A", "trang": "1",
+                          "initial_rank": 1, "final_rank": 1, "rank_delta": 0, "rerank_score": 0.8}],
+            "candidates": [],
+        })
+        self.assertIn("Local Cross-Encoder", local_out)
+
+        fb_out = render_retrieval_panel_html({
+            "retrieve_ms": 20.0,
+            "rerank_ms": 40.0,
+            "rerank_enabled": False,
+            "rerank_fallback": True,
+            "rerank_provider": "cohere",
+            "total_candidates": 1,
+            "selected": [{"doc_id": "a", "doc_title": "Doc A", "trang": "1",
+                          "initial_rank": 1, "final_rank": 1, "rank_delta": 0, "rerank_score": None}],
+            "candidates": [],
+        })
+        self.assertIn("LỖI", fb_out)
+        self.assertIn("Rerank lỗi — giữ thứ tự Stage-1", fb_out)
+
+    def test_turn_telemetry_shows_warning_chip_on_rerank_fallback(self):
+        out = render_turn_telemetry_html({
+            "latency_s": 1.5,
+            "retrieve_ms": 30.0,
+            "rerank_ms": 25.0,
+            "rerank_enabled": False,
+            "rerank_fallback": True,
+            "selected_count": 5,
+            "total_candidates": 20,
+            "model": "qwen/qwen3.8-27b",
+        })
+        self.assertIn("Rerank lỗi · Stage-1", out)
+        self.assertIn("rag-tel-warn", out)
+
 
 if __name__ == "__main__":
     unittest.main()

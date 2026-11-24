@@ -13,7 +13,7 @@ from ui.theme import (
 
 def render_documents_view(bundle):
     state = st.session_state
-    rows = summarize_docstore(bundle["db"].docstore._dict)
+    rows = bundle.get("doc_summary") or summarize_docstore(bundle["db"].docstore._dict)
     total_chunks = sum(r["chunk_count"] for r in rows)
     max_chunks = max((r["chunk_count"] for r in rows), default=0)
 

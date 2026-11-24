@@ -105,6 +105,23 @@ class TestChatState(unittest.TestCase):
         legacy_msg = get_active_conversation(state)["messages"][-1]
         self.assertNotIn("telemetry", legacy_msg)
         self.assertNotIn("retrieval", legacy_msg)
+        self.assertNotIn("is_error", legacy_msg)
+
+    def test_append_user_turn_collapses_newlines_in_title(self):
+        state = {}
+        init_state(state)
+        append_user_turn(state, "  Dòng một\n\nDòng hai  ")
+        title = get_active_conversation(state)["title"]
+        self.assertEqual(title, "Dòng một Dòng hai")
+        self.assertNotIn("\n", title)
+
+    def test_append_assistant_turn_persists_optional_is_error(self):
+        state = {}
+        init_state(state)
+        append_user_turn(state, "PEAS?")
+        append_assistant_turn(state, "Lỗi hạn mức", [], latency_s=0.5, is_error=True)
+        msg = get_active_conversation(state)["messages"][-1]
+        self.assertTrue(msg.get("is_error"))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-import copy
 import logging
 import os
 import re
@@ -42,11 +41,20 @@ EMBED_MODEL = _secret("EMBED_MODEL", "sentence-transformers/paraphrase-multiling
 # normalize_embeddings=True nên query cũng phải normalize. MiniLM index cũ build L2
 # không chuẩn hóa -> giữ default False, hành vi deploy hiện tại không đổi.
 _CROSS_LINGUAL_HINTS = ("bge-m3", "bge_large", "multilingual-e5", "e5-", "gte-")
-EMBED_NORMALIZE = _bool_secret(
-    "EMBED_NORMALIZE", any(h in EMBED_MODEL for h in _CROSS_LINGUAL_HINTS))
+
+
+def resolve_embed_defaults(embed_model):
+    """Suy ra (normalize_embeddings, default_index_dir) theo tên model (không phân biệt hoa thường)."""
+    low = str(embed_model or "").lower()
+    normalize = any(h in low for h in _CROSS_LINGUAL_HINTS)
+    index_dir = "faiss_index_bge_m3" if "bge-m3" in low else "faiss_index_huggingface"
+    return normalize, index_dir
+
+
+_default_norm, _DEFAULT_INDEX_DIR = resolve_embed_defaults(EMBED_MODEL)
+EMBED_NORMALIZE = _bool_secret("EMBED_NORMALIZE", _default_norm)
 # Thư mục index mặc định tự khớp model (bge-m3 -> 1024d, khác -> MiniLM 384d);
 # override qua Secret INDEX_PATH khi cần.
-_DEFAULT_INDEX_DIR = "faiss_index_bge_m3" if "bge-m3" in EMBED_MODEL else "faiss_index_huggingface"
 INDEX_PATH = _secret("INDEX_PATH", str(BASE_DIR / "data" / _DEFAULT_INDEX_DIR))
 # Key Groq của bản deploy đã đốt trần pool ngày trên gpt-oss-* (TPD trôi theo 24h),
 # qwen là model free còn chỗ; đổi lại qua LLM_MODEL trong Secrets khi cần.
@@ -68,8 +76,6 @@ RERANK_MODEL = _secret("RERANK_MODEL", _default_rerank_model)
 COHERE_API_KEY = _secret("COHERE_API_KEY")
 
 _groq_key = _secret("GROQ_API_KEY")
-if _groq_key:
-    os.environ["GROQ_API_KEY"] = _groq_key
 
 
 def parse_keys(primary, extra):
@@ -134,22 +140,6 @@ TRẢ LỜI:
 """
 
 
-def page_label(meta):
-    start, end = meta.get("page_start"), meta.get("page_end")
-    if start is None:
-        return "trang ?"
-    return f"trang {start}" if start == end else f"trang {start}-{end}"
-
-
-def format_docs(docs):
-    parts = []
-    for d in docs:
-        m = d.metadata
-        name = m.get("doc_title") or m.get("doc_id", "Unknown")
-        parts.append(f"[{name} ({m.get('doc_id', 'Unknown')}), {page_label(m)}]\n{d.page_content}")
-    return "\n\n".join(parts)
-
-
 def describe_llm_error(exc):
     """Thay traceback khi gọi mô hình trả lời thất bại (hết hạn mức, mạng, lỗi API).
 
@@ -199,6 +189,8 @@ def stream_answer(make_chain, pairs, inputs, report=None):
     ném thẳng, vì gọi lại sẽ nhân đôi câu trả lời người dùng đang đọc dở.
     Request bị từ chối vì hạn mức không tốn token, nên quét nhiều cặp vẫn rẻ.
     """
+    if not pairs:
+        raise ValueError("Thiếu GROQ_API_KEY trong Secrets.")
     last_error = None
     for index, (model, key) in enumerate(pairs):
         started = False
@@ -282,39 +274,17 @@ def _dedup(docs):
     return list(uniq.values())
 
 
-class RerankRetriever:
-    """Tầng 1: hybrid lấy N ứng viên. Tầng 2: cross-encoder giữ top-k."""
-    def __init__(self, base, reranker, k):
-        self.base = base
-        self.reranker = reranker
-        self.k = k
-
-    def invoke(self, question):
-        candidates = _dedup(self.base.invoke(question))
-        if not candidates:
-            return []
-        scores = self.reranker.predict([(question, d.page_content) for d in candidates])
-        ranked = sorted(zip(candidates, scores), key=lambda x: float(x[1]), reverse=True)[:self.k]
-        out = []
-        for d, sc in ranked:
-            # Copy nông Document + metadata để KHÔNG mutate Document dùng chung
-            # trong db.docstore (rerank_score chỉ tồn tại trên bản sao trả về).
-            d = copy.copy(d)
-            d.metadata = dict(d.metadata)
-            d.metadata["rerank_score"] = round(float(sc), 4)
-            out.append(d)
-        return out
-
-
 class CohereReranker:
     """Rerank qua Cohere API -> không tốn RAM cloud. predict() cùng chữ ký với CrossEncoder.
-    API lỗi (mạng/rate-limit/key) -> giữ thứ tự truy hồi gốc để chatbot vẫn trả lời được."""
+    API lỗi (mạng/rate-limit/key) -> trả về None để tầng truy hồi giữ thứ tự gốc trung thực."""
     def __init__(self, api_key, model):
         import cohere
-        self.client = cohere.ClientV2(api_key=api_key)
+        self.client = cohere.ClientV2(api_key=api_key, timeout=15)
         self.model = model
 
     def predict(self, pairs):
+        if not pairs:
+            return []
         query = pairs[0][0]
         docs = [text for _, text in pairs]
         try:
@@ -326,23 +296,13 @@ class CohereReranker:
             return scores
         except Exception as e:
             logger.warning("Cohere rerank lỗi, giữ thứ tự truy hồi gốc: %s", e)
-            return [float(len(docs) - i) for i in range(len(docs))]
-
-
-class TopKRetriever:
-    """Không reranker: hybrid lấy N ứng viên rồi giữ top-k (nhẹ RAM cho cloud free)."""
-    def __init__(self, base, k):
-        self.base = base
-        self.k = k
-
-    def invoke(self, question):
-        return _dedup(self.base.invoke(question))[:self.k]
+            return None
 
 
 def get_rag_bundle():
     """Nạp toàn bộ pipeline RAG đúng một lần (dùng qua @st.cache_resource ở app.py).
 
-    Trả về {db, ensemble, reranker, retriever, answer_chain, config};
+    Trả về {db, ensemble, reranker, make_answer_chain, groq_keys, doc_summary, config};
     reranker = None khi RERANK_PROVIDER = "off". Mọi import bên thứ ba nằm
     trong hàm để module vẫn import được chỉ với stdlib.
     """
@@ -353,6 +313,7 @@ def get_rag_bundle():
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_community.retrievers import BM25Retriever
     from langchain_classic.retrievers import EnsembleRetriever
+    from ui.catalog import summarize_docstore
 
     embeddings = HuggingFaceEmbeddings(
         model_name=EMBED_MODEL,
@@ -360,14 +321,22 @@ def get_rag_bundle():
     )
     db = FAISS.load_local(INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
 
+    index_dim = int(getattr(db.index, "d", 0) or 0)
+    embed_dim_fn = getattr(getattr(embeddings, "_client", None), "get_sentence_embedding_dimension", None)
+    model_dim = int(embed_dim_fn() or 0) if callable(embed_dim_fn) else 0
+    if index_dim and model_dim and index_dim != model_dim:
+        raise ValueError(
+            f"Lệch chiều vector: model {EMBED_MODEL} ({model_dim}d) != index {INDEX_PATH} ({index_dim}d)."
+        )
+
     # Dựng lại BM25 từ docstore đã lưu để web tự chạy, không cần chunk lại
     chunks = list(db.docstore._dict.values())
+    total_chunks = len(chunks)
     bm25 = BM25Retriever.from_documents(chunks, preprocess_func=tokenize_bm25)
-    # from_documents đã dùng preprocess_func để index; từ lúc truy vấn trở đi nó
-    # chỉ chạy trên câu hỏi -> thay bằng bộ lọc từ khoá đặc hiệu riêng tầng BM25
-    # (tầng vector vẫn nhận nguyên câu hỏi để giữ ngữ nghĩa).
-    doc_freq = build_doc_freq(tokenize_bm25(d.page_content) for d in chunks)
-    bm25.preprocess_func = lambda question: select_query_terms(question, doc_freq, len(chunks))
+    # from_documents đã điền tần suất từng chunk vào vectorizer.doc_freqs -> dùng lại
+    # thay vì tokenize lại toàn bộ kho lần thứ hai; khi truy vấn đổi sang bộ lọc từ đặc hiệu.
+    doc_freq = build_doc_freq(bm25.vectorizer.doc_freqs)
+    bm25.preprocess_func = lambda question: select_query_terms(question, doc_freq, total_chunks)
     bm25.k = RETRIEVE_N
     vector_ret = db.as_retriever(search_type="similarity", search_kwargs={"k": RETRIEVE_N})
     ensemble = EnsembleRetriever(retrievers=[bm25, vector_ret], weights=[0.3, 0.7])
@@ -377,21 +346,16 @@ def get_rag_bundle():
         if not COHERE_API_KEY:
             raise ValueError("RERANK_PROVIDER=cohere nhưng thiếu COHERE_API_KEY trong Secrets.")
         reranker = CohereReranker(COHERE_API_KEY, RERANK_MODEL)
-        retriever = RerankRetriever(ensemble, reranker, TOP_K)
     elif RERANK_PROVIDER == "local":
         from sentence_transformers import CrossEncoder
         reranker = CrossEncoder(RERANK_MODEL, max_length=1024)
-        retriever = RerankRetriever(ensemble, reranker, TOP_K)
-    else:
-        retriever = TopKRetriever(ensemble, TOP_K)
 
     prompt_template = ChatPromptTemplate.from_template(TEMPLATE)
 
     def make_answer_chain(model, key):
         return prompt_template | ChatGroq(model=model, api_key=key, temperature=0) | StrOutputParser()
 
-    answer_chain = make_answer_chain(LLM_MODEL, GROQ_KEYS[0] if GROQ_KEYS else None)
-
+    doc_summary = summarize_docstore(db.docstore._dict)
     config = {
         "top_k": TOP_K,
         "retrieve_n": RETRIEVE_N,
@@ -399,20 +363,20 @@ def get_rag_bundle():
         "rerank_model": RERANK_MODEL if RERANK_PROVIDER in ("cohere", "local") else None,
         "embed_model": EMBED_MODEL,
         "embed_normalize": EMBED_NORMALIZE,
-        "embed_dim": int(getattr(db.index, "d", 0) or 0),
+        "embed_dim": index_dim,
         "llm_model": LLM_MODEL,
-        "groq_keys": GROQ_KEYS,
+        "groq_key_count": len(GROQ_KEYS),
         "index_path": str(INDEX_PATH),
     }
-    return {"db": db, "ensemble": ensemble, "reranker": reranker,
-            "retriever": retriever, "answer_chain": answer_chain,
-            "make_answer_chain": make_answer_chain, "config": config}
-
-
-def get_rag():
-    """Backward compat: giữ chữ ký cũ (retriever, answer_chain) cho app hiện tại."""
-    bundle = get_rag_bundle()
-    return bundle["retriever"], bundle["answer_chain"]
+    return {
+        "db": db,
+        "ensemble": ensemble,
+        "reranker": reranker,
+        "make_answer_chain": make_answer_chain,
+        "groq_keys": list(GROQ_KEYS),
+        "doc_summary": doc_summary,
+        "config": config,
+    }
 
 
 def inspect_retrieval(bundle, question):
@@ -422,7 +386,7 @@ def inspect_retrieval(bundle, question):
     không mutate Document hay metadata gốc trong docstore. Mỗi candidate/selected
     gồm {doc_id, doc_title, trang, url, snippet, initial_rank, final_rank,
     rank_delta, rerank_score}; rank_delta = initial_rank - final_rank (dương =
-    được rerank đẩy lên). selected = top_k sau rerank (hoặc đầu danh sách khi tắt).
+    được rerank đẩy lên). selected = top_k sau rerank (hoặc đầu danh sách khi tắt/lỗi).
     """
     from ui.catalog import CATALOG, DRIVE_LINKS, trang_label
 
@@ -454,17 +418,27 @@ def inspect_retrieval(bundle, question):
         })
 
     rerank_ms = 0.0
+    rerank_fallback = False
     order = list(range(len(candidates)))
     if rerank_enabled and candidates:
         t1 = time.perf_counter()
-        scores = [float(s) for s in reranker.predict([(question, d.page_content) for d in candidates])]
+        try:
+            raw_scores = reranker.predict([(question, d.page_content) for d in candidates])
+        except Exception as e:
+            logger.warning("Rerank lỗi, giữ thứ tự truy hồi gốc: %s", e)
+            raw_scores = None
         rerank_ms = (time.perf_counter() - t1) * 1000.0
-        order = sorted(range(len(candidates)), key=lambda i: scores[i], reverse=True)
-        for final_rank, idx in enumerate(order, 1):
-            item = items[idx]
-            item["final_rank"] = final_rank
-            item["rank_delta"] = item["initial_rank"] - final_rank
-            item["rerank_score"] = round(scores[idx], 4)
+        if raw_scores is None or len(raw_scores) != len(candidates):
+            rerank_enabled = False
+            rerank_fallback = True
+        else:
+            scores = [float(s) for s in raw_scores]
+            order = sorted(range(len(candidates)), key=lambda i: scores[i], reverse=True)
+            for final_rank, idx in enumerate(order, 1):
+                item = items[idx]
+                item["final_rank"] = final_rank
+                item["rank_delta"] = item["initial_rank"] - final_rank
+                item["rerank_score"] = round(scores[idx], 4)
 
     selected = [items[i] for i in order[:top_k]]
     return {
@@ -472,6 +446,8 @@ def inspect_retrieval(bundle, question):
         "retrieve_ms": round(retrieve_ms, 2),
         "rerank_ms": round(rerank_ms, 2),
         "rerank_enabled": rerank_enabled,
+        "rerank_fallback": rerank_fallback,
+        "rerank_provider": provider,
         "total_candidates": len(candidates),
         "candidates": items,
         "selected": selected,

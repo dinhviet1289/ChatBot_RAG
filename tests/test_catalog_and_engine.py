@@ -307,6 +307,77 @@ class TestCatalogAndEngine(unittest.TestCase):
         }
         self.assertEqual(fields, {"context", "question"})
 
+    def test_cohere_reranker_handles_empty_pairs_and_returns_none_on_error(self):
+        import sys
+        from unittest.mock import patch
+        import rag_engine_web
+
+        created = {}
+
+        class FakeClientV2:
+            def __init__(self, api_key, timeout=None):
+                created["timeout"] = timeout
+
+            def rerank(self, **kwargs):
+                raise RuntimeError("429 quota exceeded")
+
+        fake_cohere = types.SimpleNamespace(ClientV2=FakeClientV2)
+        with patch.dict(sys.modules, {"cohere": fake_cohere}):
+            rr = rag_engine_web.CohereReranker("k", "rerank-multilingual-v3.0")
+            self.assertEqual(created["timeout"], 15)
+            self.assertEqual(rr.predict([]), [])
+            self.assertIsNone(rr.predict([("query", "doc")]))
+
+    def test_inspect_retrieval_falls_back_cleanly_when_reranker_returns_none_or_raises(self):
+        d1 = FakeDoc("chunk 1", {"doc_id": "elc3008_ch01", "start_index": 0, "page_start": 1, "page_end": 1})
+        d2 = FakeDoc("chunk 2", {"doc_id": "elc3008_ch02", "start_index": 1, "page_start": 2, "page_end": 2})
+        ensemble = types.SimpleNamespace(invoke=lambda q: [d1, d2])
+
+        for bad_reranker in (
+            types.SimpleNamespace(predict=lambda pairs: None),
+            types.SimpleNamespace(predict=lambda pairs: (_ for _ in ()).throw(RuntimeError("boom"))),
+        ):
+            bundle = {
+                "ensemble": ensemble,
+                "reranker": bad_reranker,
+                "config": {"top_k": 2, "retrieve_n": 20, "rerank_provider": "cohere"},
+            }
+            res = inspect_retrieval(bundle, "PEAS")
+            self.assertFalse(res["rerank_enabled"])
+            self.assertTrue(res["rerank_fallback"])
+            self.assertEqual([it["doc_id"] for it in res["selected"]], ["elc3008_ch01", "elc3008_ch02"])
+            self.assertTrue(all(it["rerank_score"] is None for it in res["selected"]))
+            self.assertTrue(all(it["rank_delta"] == 0 for it in res["selected"]))
+
+    def test_should_show_sources_handles_english_refusal_and_partial_answers(self):
+        self.assertFalse(should_show_sources("The course materials do not mention this topic."))
+        self.assertFalse(should_show_sources("Sorry, this question is outside the scope of the course."))
+        self.assertTrue(should_show_sources(
+            "Phần đầu dùng heuristic (AIMA, trang 60), nhưng ngữ cảnh không đề cập chi tiết cài đặt cụ thể."
+        ))
+        long_partial = "Nội dung chính được trình bày rõ ràng trong giáo trình. " + ("x" * 240) + " Phần phụ không đề cập."
+        self.assertTrue(should_show_sources(long_partial))
+
+    def test_resolve_embed_defaults_is_case_insensitive(self):
+        from rag_engine_web import resolve_embed_defaults
+        self.assertEqual(resolve_embed_defaults("BAAI/BGE-M3"), (True, "faiss_index_bge_m3"))
+        self.assertEqual(
+            resolve_embed_defaults("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"),
+            (False, "faiss_index_huggingface"),
+        )
+
+    def test_negative_rerank_logits_still_outrank_missing_scores(self):
+        docs = [
+            FakeDoc("thiếu điểm", {"doc_id": "elc3008_ch01", "page_start": 2, "page_end": 2}),
+            FakeDoc("logit âm", {"doc_id": "elc3008_ch01", "page_start": 2, "page_end": 2, "rerank_score": -2.5}),
+        ]
+        out = serialize_sources(docs)
+        self.assertEqual(out[0]["snippet"], "logit âm")
+
+    def test_build_doc_freq_accepts_term_frequency_dicts(self):
+        from rag_engine_web import build_doc_freq
+        self.assertEqual(build_doc_freq([{"peas": 4, "ai": 1}, {"ai": 2}]), {"peas": 1, "ai": 2})
+
 
 if __name__ == "__main__":
     unittest.main()

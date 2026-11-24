@@ -107,6 +107,11 @@ class TestStreamAnswer(unittest.TestCase):
         with self.assertRaises(NotFoundError):
             list(stream_answer(make, [("a", "k1"), ("a", "k2")], {}))
 
+    def test_empty_pairs_raises_value_error(self):
+        make = self._factory({})
+        with self.assertRaises(ValueError):
+            list(stream_answer(make, [], {}))
+
 
 if __name__ == "__main__":
     unittest.main()

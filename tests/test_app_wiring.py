@@ -221,6 +221,21 @@ class TestAppWiring(unittest.TestCase):
         self.assertIn("embed_dim", conv)
         self.assertIn("embed_dim", insp)
 
+    def test_sidebar_buttons_use_on_click_callbacks(self):
+        src = (ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertNotIn("st.rerun()", src)
+        self.assertGreaterEqual(src.count("on_click="), 5)
+
+    def test_conversation_uses_regen_slot_handles_errors_and_reads_top_level_groq_keys(self):
+        src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
+        self.assertNotIn("retry_after_error", src)
+        self.assertIn("regen_slot = st.empty()", src)
+        self.assertIn("regen_slot.empty()", src)
+        self.assertIn('is_error=True', src)
+        self.assertIn('bundle.get("groq_keys")', src)
+        try_block = src.split("        try:", 1)[1].split("        except Exception as exc:", 1)[0]
+        self.assertIn("inspect_retrieval(bundle, prompt)", try_block)
+
 
 if __name__ == "__main__":
     unittest.main()

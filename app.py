@@ -1,6 +1,8 @@
+import logging
+
 import streamlit as st
 
-from rag_engine_web import get_rag_bundle
+from rag_engine_web import INDEX_PATH, get_rag_bundle
 from ui.state import (
     clear_all_conversations,
     create_new_conversation,
@@ -11,6 +13,8 @@ from ui.theme import inject_global_css, render_system_card_html
 from views.conversation import render_conversation_view
 from views.documents import render_documents_view
 from views.inspector import render_inspector_view
+
+logger = logging.getLogger(__name__)
 
 
 def _ram_mb():
@@ -60,9 +64,9 @@ def load_bundle():
 try:
     bundle = load_bundle()
 except Exception as e:
-    st.error(f"Chưa nạp được vector index: {e}")
-    st.info("Kiểm tra data/faiss_index_huggingface (index.faiss + index.pkl) "
-            "và GROQ_API_KEY trong Secrets.")
+    logger.exception("Không nạp được bundle RAG")
+    st.error(f"Chưa nạp được vector index ({type(e).__name__}).")
+    st.info(f"Kiểm tra `{INDEX_PATH}` (index.faiss + index.pkl) và cấu hình Secrets.")
     st.stop()
 
 state = st.session_state

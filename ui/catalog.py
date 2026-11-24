@@ -69,7 +69,15 @@ def doc_lang(doc_id):
     return "EN" if doc_id in _EN_DOC_IDS else "VI"
 
 # Câu từ chối chuẩn của prompt (rule 3/10 trong rag_engine_web.TEMPLATE).
-_REFUSAL_MARKER = "không đề cập"
+_REFUSAL_MARKERS = (
+    "không đề cập",
+    "do not mention",
+    "does not mention",
+    "not mentioned in the course",
+    "outside the scope",
+    "out of scope",
+)
+_CITATION_HINTS = ("trang ", "page ", "pages ")
 
 # (doc_id, title, category, sample_question) — đủ 44 doc_id trong chỉ mục.
 _ENTRIES = [
@@ -185,7 +193,7 @@ CATALOG = {
     doc_id: {
         "title": title,
         "category": category,
-        "url": DRIVE_LINKS.get(doc_id),  # None với 5 giáo trình không có link Drive
+        "url": DRIVE_LINKS.get(doc_id),  # None với 31 tài liệu không có link Drive
         "sample_question": sample_question,
     }
     for doc_id, title, category, sample_question in _ENTRIES
@@ -250,14 +258,20 @@ def summarize_docstore(docstore_dict):
 
 
 def should_show_sources(answer):
-    """False khi câu trả lời rỗng/chỉ khoảng trắng hoặc là lời từ chối.
+    """False khi câu trả lời rỗng/chỉ khoảng trắng hoặc là lời từ chối thuần.
 
-    Khớp "không đề cập" không phân biệt hoa thường (vd "KHÔNG ĐỀ CẬP") để
-    không hiển thị trích dẫn gây hiểu nhầm ở lượt từ chối.
+    Khớp cụm từ chối VI/EN không phân biệt hoa thường; giữ lại nguồn nếu câu trả
+    lời dài (> 280 ký tự) hoặc đã trích dẫn trang (vd câu trả lời một phần).
     """
-    if not answer or not str(answer).strip():
+    text = str(answer or "").strip()
+    if not text:
         return False
-    return _REFUSAL_MARKER not in str(answer).lower()
+    low = text.lower()
+    if any(m in low for m in _REFUSAL_MARKERS):
+        if any(h in low for h in _CITATION_HINTS) or len(text) > 280:
+            return True
+        return False
+    return True
 
 
 def serialize_sources(docs):
@@ -291,7 +305,7 @@ def serialize_sources(docs):
 
 
 def _score(src):
-    return src["rerank_score"] if src["rerank_score"] is not None else -1.0
+    return src["rerank_score"] if src["rerank_score"] is not None else float("-inf")
 
 
 def sources_from_inspection(selected):

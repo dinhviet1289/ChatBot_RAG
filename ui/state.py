@@ -71,12 +71,12 @@ def delete_conversation(state, conv_id):
 def append_user_turn(state, prompt):
     conv = get_active_conversation(state)
     if conv["title"] == DEFAULT_TITLE:
-        conv["title"] = prompt.strip()[:TITLE_MAX]
+        conv["title"] = " ".join(prompt.split())[:TITLE_MAX]
     conv["messages"].append({"role": "user", "content": prompt})
 
 
 def append_assistant_turn(state, content, sources, latency_s=0.0,
-                          telemetry=None, retrieval=None):
+                          telemetry=None, retrieval=None, is_error=False):
     conv = get_active_conversation(state)
     msg = {
         "role": "assistant",
@@ -88,6 +88,8 @@ def append_assistant_turn(state, content, sources, latency_s=0.0,
         msg["telemetry"] = dict(telemetry)
     if retrieval:
         msg["retrieval"] = dict(retrieval)
+    if is_error:
+        msg["is_error"] = True
     conv["messages"].append(msg)
 
 

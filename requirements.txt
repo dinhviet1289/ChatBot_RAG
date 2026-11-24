@@ -5,10 +5,9 @@
 torch==2.6.0+cpu
 
 # Web
-streamlit>=1.50
+streamlit>=1.50,<2
 
 # RAG stack (khớp notebook Colab). Nếu build lỗi version, xem README mục "Khoá version".
-langchain
 langchain-classic
 langchain-community
 langchain-core

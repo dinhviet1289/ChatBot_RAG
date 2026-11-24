@@ -66,7 +66,7 @@ chatbox-rag/
 │   └── inspector.py              # Trang Kiểm tra truy hồi
 ├── data/
 │   ├── faiss_index_huggingface/  # Index MiniLM-L12-v2 (384d): index.faiss, index.pkl, manifest.json
-│   └── faiss_index_bge_m3/       # Cấu hình & manifest cho index BAAI/bge-m3 (1024d)
+│   └── faiss_index_bge_m3/       # Index BAAI/bge-m3 (1024d): index.faiss, index.pkl, manifest.json (cho Colab/máy >2.2GB RAM)
 ├── .streamlit/
 │   ├── config.toml               # Cấu hình theme & server Streamlit
 │   └── secrets.toml.example      # Mẫu biến môi trường / Secrets (không chứa key thật)
@@ -131,7 +131,7 @@ COHERE_API_KEY = "your_cohere_trial_key"
 | `BAAI/bge-m3` | 1024d | > 2.2 GB | Nâng **Hit@5 từ 0.434 → 0.697 (+61%)** trên kho song ngữ Việt–Anh; cần gói RAM > 2.2 GB |
 
 Để chuyển sang `bge-m3`:
-1. Đặt `index.faiss` và `index.pkl` tương ứng vào `data/faiss_index_bge_m3/`.
+1. Kiểm tra `data/faiss_index_bge_m3/` đã có đủ `index.faiss`, `index.pkl` và `manifest.json` (đã kèm sẵn trong repo; có thể gỡ khỏi branch deploy nếu muốn thu gọn clone khi chỉ chạy Free Tier).
 2. Thêm `EMBED_MODEL = "BAAI/bge-m3"` vào Secrets (code tự động trỏ sang `data/faiss_index_bge_m3` và bật `normalize_embeddings=True`).
 3. **Manage app → Reboot** và kiểm tra KPI *Không gian embedding* tại trang **Kho tài liệu** hiển thị `1024d · BAAI/bge-m3`.
 
@@ -143,7 +143,7 @@ COHERE_API_KEY = "your_cohere_trial_key"
 
 ```python
 import importlib.metadata as md
-for p in ["torch", "streamlit", "langchain", "langchain-classic", "langchain-community",
+for p in ["torch", "streamlit", "langchain-classic", "langchain-community",
           "langchain-core", "langchain-groq", "langchain-huggingface",
           "faiss-cpu", "rank-bm25", "sentence-transformers", "cohere"]:
     try:
