@@ -123,13 +123,20 @@ def _render_empty_state(state, bundle=None):
         f'<span class="rag-hero-pill">{chunk_count:,} Chunks</span>'
         f'<span class="rag-hero-pill">BM25 + FAISS {embed_dim}d</span>'
         f'<span class="rag-hero-pill">{html.escape(rerank_pill)}</span>'
+        f'</div>'
+        f'<div class="rag-hero-flow">'
+        f'<span class="rag-flow-step">1. Hybrid BM25 + FAISS</span>'
+        f'<span class="rag-flow-arrow" aria-hidden="true">→</span>'
+        f'<span class="rag-flow-step">2. Cross-Encoder Rerank</span>'
+        f'<span class="rag-flow-arrow" aria-hidden="true">→</span>'
+        f'<span class="rag-flow-step">3. Trích nguồn &amp; trang gốc</span>'
         f'</div></div>',
         unsafe_allow_html=True,
     )
     cols = st.columns(2)
     for i, card in enumerate(SUGGESTED_CARDS):
         with cols[i % 2]:
-            if st.button(f":material/{card['icon']}: **{card['title']}**  \n{card['prompt']}",
+            if st.button(f":material/{card['icon']}: **{card['title']}** — {card['subtitle']}  \n{card['prompt']}",
                          key=f"sug_{i}", width="stretch"):
                 # Không rerun: pending_prompt được tiêu ngay trong cùng lần chạy.
                 state["pending_prompt"] = card["prompt"]

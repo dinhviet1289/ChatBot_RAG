@@ -434,6 +434,21 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn("opacity:0.78", css)
         self.assertNotIn("opacity:0.45", css)
 
+    def test_typography_loads_vietnamese_fonts_without_breaking_icons(self):
+        from ui.theme import _FONT_LINKS_HTML
+
+        self.assertIn("Plus+Jakarta+Sans", _FONT_LINKS_HTML)
+        self.assertIn("Be+Vietnam+Pro", _FONT_LINKS_HTML)
+        self.assertIn("JetBrains+Mono", _FONT_LINKS_HTML)
+        self.assertIn('<link rel="stylesheet"', _FONT_LINKS_HTML)
+
+        css = _global_css()
+        self.assertIn("--font-display", css)
+        self.assertIn("font-family:var(--font-sans) !important", css)
+        self.assertNotIn("* { font-family", css)
+        self.assertIn('[data-testid="stChatMessage"] { animation:rag-rise', css)
+        self.assertIn("background:#FFFFFF; border:1px solid var(--border); border-radius:16px;", css)
+
 
 if __name__ == "__main__":
     unittest.main()

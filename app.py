@@ -73,15 +73,28 @@ state = st.session_state
 NAV = [("documents", ":material/folder_open:", "Kho tài liệu"),
        ("inspector", ":material/science:", "Kiểm tra truy hồi")]
 
+_BRAND_SVG = (
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" '
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>'
+    '<path d="M6 12v5c3 3 9 3 12 0v-5"></path>'
+    '</svg>'
+)
+
 # Sidebar dùng on_click callback (chạy TRƯỚC khi render nút ở rerun mới) nên trạng thái
 # active cập nhật tức thì ở lần click đầu tiên mà không cần gọi rerun thủ công.
 with st.sidebar:
     st.markdown(
-        '<div class="rag-brand">'
-        '<span class="rag-brand-kicker">ELC3008 · AI LAB</span>'
-        '<div class="rag-brand-title">Trợ lý học tập DUE</div>'
-        '<div class="rag-brand-sub">Trí tuệ nhân tạo trong kinh doanh · ĐH Kinh tế</div>'
-        '</div>',
+        f'<div class="rag-brand">'
+        f'<div class="rag-brand-top">'
+        f'<span class="rag-brand-logo">{_BRAND_SVG}</span>'
+        f'<div>'
+        f'<span class="rag-brand-kicker">ELC3008 · AI LAB</span>'
+        f'<div class="rag-brand-title">Trợ lý học tập DUE</div>'
+        f'</div>'
+        f'</div>'
+        f'<div class="rag-brand-sub">Trí tuệ nhân tạo trong kinh doanh · ĐH Kinh tế</div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
     st.button(":material/add: Cuộc hội thoại mới", key="new_conv",
@@ -112,13 +125,22 @@ with st.sidebar:
     st.markdown(render_system_card_html(bundle["config"]), unsafe_allow_html=True)
     ram = _ram_mb()
     if ram is None:
-        ram_cls, ram_txt = "", "—"
+        ram_cls, ram_txt, ram_pct = "", "—", 0.0
     else:
         ram_cls = "is-danger" if ram >= 850 else ("is-warn" if ram >= 650 else "is-ok")
         ram_txt = f"{ram:.0f} / 1024 MB"
+        ram_pct = min(100.0, max(2.0, (ram / 1024.0) * 100.0))
+    ram_bar = (
+        f'<div class="rag-ram-bar"><span class="rag-ram-fill {ram_cls}" '
+        f'style="width:{ram_pct:.1f}%;"></span></div>'
+        if ram is not None else ""
+    )
     st.markdown(
-        f'<div class="rag-ram-caption"><span>RAM app:</span>'
-        f'<span class="rag-ram-val {ram_cls}">{ram_txt}</span></div>',
+        f'<div class="rag-ram-caption">'
+        f'<div class="rag-ram-row"><span>RAM app:</span>'
+        f'<span class="rag-ram-val {ram_cls}">{ram_txt}</span></div>'
+        f'{ram_bar}'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
