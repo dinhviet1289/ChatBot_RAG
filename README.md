@@ -36,7 +36,7 @@ Câu hỏi người dùng
 
 ## Giao diện & Tính năng (`Scientific Observatory`)
 
-`app.py` sử dụng bố cục `layout="wide"` với sidebar trái (thương hiệu **Trợ lý học tập DUE**, nút tạo cuộc hội thoại mới, điều hướng, danh sách hội thoại **mới nhất ở trên cùng**, thẻ trạng thái hệ thống và chỉ số **RAM app** thực tế):
+`app.py` sử dụng bố cục `layout="wide"` với sidebar trái (thương hiệu **Trợ lý học tập DUE**, nút tạo cuộc hội thoại mới, điều hướng, danh sách hội thoại **mới nhất ở trên cùng** và thẻ trạng thái hệ thống):
 
 1. **Màn hình hội thoại (`views/conversation.py` — trang mặc định):**
    - Cuộc hội thoại mới mở với hero tổng quan kho học liệu và **4 thẻ gợi ý 2×2**.

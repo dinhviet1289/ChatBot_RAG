@@ -17,17 +17,6 @@ from views.inspector import render_inspector_view
 logger = logging.getLogger(__name__)
 
 
-def _ram_mb():
-    """RAM thực của process app (MB) đọc từ /proc/self/status trên container Linux."""
-    try:
-        with open("/proc/self/status") as f:
-            for line in f:
-                if line.startswith("VmRSS:"):
-                    return int(line.split()[1]) / 1024
-    except (OSError, ValueError):
-        return None
-
-
 def _on_new_conv():
     create_new_conversation(st.session_state)
     st.session_state["active_page"] = "conversation"
@@ -123,26 +112,6 @@ with st.sidebar:
     st.divider()
     st.caption("Hệ thống")
     st.markdown(render_system_card_html(bundle["config"]), unsafe_allow_html=True)
-    ram = _ram_mb()
-    if ram is None:
-        ram_cls, ram_txt, ram_pct = "", "—", 0.0
-    else:
-        ram_cls = "is-danger" if ram >= 850 else ("is-warn" if ram >= 650 else "is-ok")
-        ram_txt = f"{ram:.0f} / 1024 MB"
-        ram_pct = min(100.0, max(2.0, (ram / 1024.0) * 100.0))
-    ram_bar = (
-        f'<div class="rag-ram-bar"><span class="rag-ram-fill {ram_cls}" '
-        f'style="width:{ram_pct:.1f}%;"></span></div>'
-        if ram is not None else ""
-    )
-    st.markdown(
-        f'<div class="rag-ram-caption">'
-        f'<div class="rag-ram-row"><span>RAM app:</span>'
-        f'<span class="rag-ram-val {ram_cls}">{ram_txt}</span></div>'
-        f'{ram_bar}'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
 
 page = state["active_page"]
 if page == "conversation":

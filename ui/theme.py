@@ -1220,19 +1220,6 @@ a:hover { color:var(--primary-end); }
   color:var(--muted); }
 .rag-sys-row .rag-mono { color:var(--text); text-align:right; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; }
-.rag-ram-caption { font-family:var(--font-mono); font-size:0.75rem; color:var(--muted);
-  margin-top:6px; padding:8px 11px; background:#FFFFFF; border:1px solid var(--border);
-  border-radius:10px; box-shadow:0 1px 2px rgba(15,23,42,0.03); }
-.rag-ram-row { display:flex; justify-content:space-between; align-items:center; }
-.rag-ram-val { font-weight:600; color:var(--text); }
-.rag-ram-val.is-ok { color:var(--success); }
-.rag-ram-val.is-warn { color:var(--warn); }
-.rag-ram-val.is-danger { color:var(--danger); }
-.rag-ram-bar { height:4px; background:#E2E8F0; border-radius:999px; overflow:hidden; margin-top:6px; }
-.rag-ram-fill { display:block; height:100%; border-radius:999px; background:var(--primary); }
-.rag-ram-fill.is-ok { background:var(--success); }
-.rag-ram-fill.is-warn { background:var(--warn); }
-.rag-ram-fill.is-danger { background:var(--danger); }
 
 /* Unified Page Header */
 .rag-page-header { display:flex; align-items:flex-end; justify-content:space-between;

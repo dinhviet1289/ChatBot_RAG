@@ -63,12 +63,11 @@ class TestAppWiring(unittest.TestCase):
         src = (ROOT / "app.py").read_text(encoding="utf-8")
         self.assertNotIn("st.rerun()", src)
 
-    def test_sidebar_shows_live_process_ram(self):
-        # Free tier giới hạn RAM; cần thấy RAM thực của process (gồm model + index +
-        # BM25) ngay sidebar để canh ngưỡng OOM. Đọc /proc/self/status (container Linux).
+    def test_sidebar_omits_process_ram(self):
         src = (ROOT / "app.py").read_text(encoding="utf-8")
-        self.assertIn("VmRSS", src)
-        self.assertIn("RAM app", src)
+        self.assertNotIn("VmRSS", src)
+        self.assertNotIn("RAM app", src)
+        self.assertNotIn("rag-ram-", src)
 
     def test_conversation_view_streams_through_the_model_fallback_and_persists_turns(self):
         # Gọi thẳng answer_chain.stream() sẽ bỏ qua bước đổi model/key khi hết hạn mức.
