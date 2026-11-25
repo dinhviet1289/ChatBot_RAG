@@ -416,6 +416,7 @@ class TestThemeRenderers(unittest.TestCase):
             (PALETTE["muted"], PALETTE["card"]),
             (PALETTE["warning"], "#FFFBEB"),
             (PALETTE["success"], "#ECFDF5"),
+            (PALETTE["info"], "#F0FDFA"),
             (PALETTE["info"], "#F0F9FF"),
             (PALETTE["danger"], "#FEF2F2"),
             (PALETTE["link"], PALETTE["active_pill"]),
@@ -476,6 +477,43 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertTrue(style_body.startswith("<style>"))
         self.assertTrue(style_body.endswith("</style>"))
         self.assertNotIn("\n\n", style_body)
+
+    def test_render_source_pills_handles_links_overflow_and_unsafe_urls(self):
+        from ui.theme import render_source_pills_html
+
+        self.assertEqual(render_source_pills_html([]), "")
+        sources = [
+            {
+                "doc_id": "d1",
+                "doc_title": "Giáo trình AI <Part 1>",
+                "trang": "14",
+                "final_rank": 1,
+                "url": "https://drive.google.com/file/d/abc/view",
+            },
+            {
+                "doc_id": "d2",
+                "doc_title": "Slide tìm kiếm",
+                "trang": "6",
+                "final_rank": 2,
+                "url": "javascript:alert(1)",
+            },
+            {"doc_id": "d3", "doc_title": "Doc 3", "trang": "9", "final_rank": 3},
+            {
+                "doc_id": "d4",
+                "doc_title": "Tài liệu rất dài vượt quá ba mươi bốn ký tự",
+                "trang": "12",
+                "final_rank": 4,
+            },
+            {"doc_id": "d5", "doc_title": "Doc 5", "trang": "20", "final_rank": 5},
+        ]
+        out = render_source_pills_html(sources)
+        self.assertIn("https://drive.google.com/file/d/abc/view", out)
+        self.assertIn("Giáo trình AI &lt;Part 1&gt;", out)
+        self.assertIn("tr.14", out)
+        self.assertNotIn("javascript:alert", out)
+        self.assertIn("…", out)
+        self.assertNotIn("Doc 5", out)
+        self.assertIn("+1 nguồn", out)
 
 
 if __name__ == "__main__":

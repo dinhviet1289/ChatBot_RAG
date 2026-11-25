@@ -15,6 +15,7 @@ def _reset_doc_filters():
     st.session_state["doc_q"] = ""
     st.session_state["doc_cat"] = "Tất cả"
     st.session_state["doc_lang"] = "Tất cả"
+    st.session_state["doc_sort"] = "Mặc định"
 
 
 def render_documents_view(bundle):
@@ -46,7 +47,7 @@ def render_documents_view(bundle):
         embed_model=embed_model,
     ), unsafe_allow_html=True)
 
-    f1, f2, f3 = st.columns([2.4, 2.1, 1.0], vertical_alignment="bottom")
+    f1, f2, f3, f4 = st.columns([2.2, 1.8, 0.9, 1.3], vertical_alignment="bottom")
     with f1:
         query = st.text_input("Tìm tài liệu",
                               placeholder="Tìm theo tên hoặc doc_id...",
@@ -57,6 +58,12 @@ def render_documents_view(bundle):
     with f3:
         lang_sel = st.selectbox("Ngôn ngữ", ["Tất cả", "VI", "EN"],
                                 key="doc_lang")
+    with f4:
+        sort_sel = st.selectbox(
+            "Sắp xếp",
+            ["Mặc định", "Nhiều chunks nhất", "Tên A → Z"],
+            key="doc_sort",
+        )
 
     q = (query or "").strip().lower()
     filtered = [r for r in rows
@@ -66,7 +73,16 @@ def render_documents_view(bundle):
                      or q in r["doc_id"].lower()
                      or q in r["category"].lower()
                      or q == r.get("lang", "").lower())]
-    has_filter = bool(q or (sel not in (None, "Tất cả")) or (lang_sel not in (None, "Tất cả")))
+    if sort_sel == "Nhiều chunks nhất":
+        filtered.sort(key=lambda r: (-int(r["chunk_count"]), r["title"].lower()))
+    elif sort_sel == "Tên A → Z":
+        filtered.sort(key=lambda r: r["title"].lower())
+    has_filter = bool(
+        q
+        or (sel not in (None, "Tất cả"))
+        or (lang_sel not in (None, "Tất cả"))
+        or (sort_sel not in (None, "Mặc định"))
+    )
     if has_filter:
         c_cnt, c_rst = st.columns([4, 1], vertical_alignment="center")
         with c_cnt:
@@ -87,16 +103,18 @@ def render_documents_view(bundle):
             with st.container(border=True):
                 st.markdown(render_doc_card_html(r, max_chunks, total_chunks),
                             unsafe_allow_html=True)
-                b1, b2 = st.columns(2)
-                with b1:
-                    if r["url"]:
-                        st.link_button("Mở Drive", r["url"], width="stretch")
-                    else:
-                        st.button("Chỉ mục", key=f"idx_{r['doc_id']}",
-                                  width="stretch", disabled=True,
-                                  help="Tài liệu chỉ có trong Vector Index")
-                with b2:
-                    if st.button("Hỏi tài liệu", key=f"ask_{r['doc_id']}",
-                                 width="stretch"):
+                if r["url"]:
+                    b1, b2 = st.columns(2)
+                    with b1:
+                        st.link_button(":material/open_in_new: Mở Drive", r["url"],
+                                       width="stretch")
+                    with b2:
+                        if st.button(":material/chat: Hỏi tài liệu",
+                                     key=f"ask_{r['doc_id']}", width="stretch"):
+                            ask_about_document(state, r["doc_id"], r["sample_question"])
+                            st.rerun()
+                else:
+                    if st.button(":material/chat: Hỏi thử tài liệu này",
+                                 key=f"ask_{r['doc_id']}", width="stretch"):
                         ask_about_document(state, r["doc_id"], r["sample_question"])
                         st.rerun()

@@ -107,3 +107,21 @@ def ask_about_document(state, doc_id, prompt):
     init_state(state)
     state["active_page"] = "conversation"
     state["pending_prompt"] = prompt
+
+
+def last_user_question(state):
+    msgs = get_active_conversation(state)["messages"]
+    for m in reversed(msgs):
+        if m.get("role") == "user" and m.get("content"):
+            return m["content"]
+    return None
+
+
+def open_in_inspector(state, question):
+    init_state(state)
+    q = (question or "").strip()
+    if not q:
+        return
+    state["dbg_q"] = q
+    state["dbg_auto"] = True
+    state["active_page"] = "inspector"

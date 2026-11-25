@@ -26,17 +26,37 @@ from ui.state import (
     append_assistant_turn,
     append_user_turn,
     get_active_conversation,
+    last_user_question,
+    open_in_inspector,
     prepare_regenerate,
 )
 from ui.theme import (
     normalize_latex_for_streamlit,
     render_citation_box_html,
     render_page_header_html,
+    render_source_pills_html,
     render_turn_telemetry_html,
 )
 
 USER_AVATAR = ":material/person:"
 AI_AVATAR = ":material/school:"
+
+
+def _on_inspect_last():
+    q = last_user_question(st.session_state)
+    if q:
+        open_in_inspector(st.session_state, q)
+
+
+def _clear_stage_on_first_chunk(stream, stage_slot):
+    cleared = False
+    for chunk in stream:
+        if not cleared:
+            stage_slot.empty()
+            cleared = True
+        yield chunk
+    if not cleared:
+        stage_slot.empty()
 
 
 def _build_telemetry(cfg, res, served, keys, latency_s):
@@ -96,6 +116,8 @@ def _render_history(conv):
                     st.markdown(render_turn_telemetry_html(msg["telemetry"]),
                                 unsafe_allow_html=True)
                 if msg.get("sources"):
+                    st.markdown(render_source_pills_html(msg["sources"]),
+                                unsafe_allow_html=True)
                     with st.expander(f"Nguồn trích dẫn & truy hồi ({len(msg['sources'])})",
                                      expanded=False):
                         st.markdown(render_citation_box_html(msg["sources"]),
@@ -136,7 +158,7 @@ def _render_empty_state(state, bundle=None):
     cols = st.columns(2)
     for i, card in enumerate(SUGGESTED_CARDS):
         with cols[i % 2]:
-            if st.button(f":material/{card['icon']}: **{card['title']}** — {card['subtitle']}  \n{card['prompt']}",
+            if st.button(f":material/{card['icon']}: **{card['title']}** · {card['subtitle']}\n\n{card['prompt']} →",
                          key=f"sug_{i}", width="stretch"):
                 # Không rerun: pending_prompt được tiêu ngay trong cùng lần chạy.
                 state["pending_prompt"] = card["prompt"]
@@ -155,12 +177,21 @@ def render_conversation_view(bundle):
 
     regen_slot = st.empty()
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
-        if regen_slot.button(":material/refresh: Tạo lại câu trả lời", key="regen"):
-            q = prepare_regenerate(state)
-            if q:
-                state["pending_prompt"] = q
-                # Lịch sử đã render cả lượt cũ; phải rerun để vẽ lại sau khi pop.
-                st.rerun()
+        with regen_slot.container():
+            act1, act2 = st.columns([1, 1.15])
+            if act1.button(":material/refresh: Tạo lại câu trả lời", key="regen", width="stretch"):
+                q = prepare_regenerate(state)
+                if q:
+                    state["pending_prompt"] = q
+                    # Lịch sử đã render cả lượt cũ; phải rerun để vẽ lại sau khi pop.
+                    st.rerun()
+            if last_user_question(state):
+                act2.button(
+                    ":material/science: Mổ xẻ truy hồi câu này",
+                    key="inspect_last",
+                    width="stretch",
+                    on_click=_on_inspect_last,
+                )
 
     empty_slot = st.empty()
     if not conv["messages"] and not state.get("pending_prompt"):
@@ -198,17 +229,30 @@ def render_conversation_view(bundle):
         )
         try:
             res = inspect_retrieval(bundle, prompt)
-            stage_slot.empty()
+            stage_ms = float(res.get("retrieve_ms") or 0.0) + (
+                float(res.get("rerank_ms") or 0.0) if res.get("rerank_enabled") else 0.0
+            )
+            stage_slot.markdown(
+                f'<div class="rag-stage-live is-synth">'
+                f'<span class="rag-stage-dot"></span>'
+                f'<span>Đã chọn {len(res.get("selected") or [])} đoạn trích '
+                f'({stage_ms:.0f} ms) · Đang tổng hợp câu trả lời...</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
             ctx = format_selected_context(res["selected"])
             answer_slot = st.empty()
             with answer_slot.container():
-                raw_answer = st.write_stream(stream_answer(
-                    bundle["make_answer_chain"],
-                    rotation_pairs(keys, model_chain(bundle["config"]["llm_model"])),
-                    {"context": ctx, "question": prompt},
-                    report=lambda model, key, fell_back: served.update(
-                        model=model, key=key, fell_back=fell_back)))
+                raw_answer = st.write_stream(_clear_stage_on_first_chunk(
+                    stream_answer(
+                        bundle["make_answer_chain"],
+                        rotation_pairs(keys, model_chain(bundle["config"]["llm_model"])),
+                        {"context": ctx, "question": prompt},
+                        report=lambda model, key, fell_back: served.update(
+                            model=model, key=key, fell_back=fell_back)),
+                    stage_slot,
+                ))
             answer = normalize_latex_for_streamlit(raw_answer)
             if answer != (raw_answer or ""):
                 answer_slot.markdown(answer)
@@ -217,6 +261,7 @@ def render_conversation_view(bundle):
             telemetry = _build_telemetry(bundle["config"], res, served, keys, total_s)
             st.markdown(render_turn_telemetry_html(telemetry), unsafe_allow_html=True)
             if sources:
+                st.markdown(render_source_pills_html(sources), unsafe_allow_html=True)
                 with st.expander(f"Nguồn trích dẫn & truy hồi ({len(sources)})", expanded=False):
                     st.markdown(render_citation_box_html(sources), unsafe_allow_html=True)
             append_assistant_turn(

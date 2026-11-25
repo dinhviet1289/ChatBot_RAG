@@ -8,6 +8,8 @@ from ui.state import (
     delete_conversation,
     get_active_conversation,
     init_state,
+    last_user_question,
+    open_in_inspector,
     prepare_regenerate,
 )
 
@@ -122,6 +124,20 @@ class TestChatState(unittest.TestCase):
         append_assistant_turn(state, "Lỗi hạn mức", [], latency_s=0.5, is_error=True)
         msg = get_active_conversation(state)["messages"][-1]
         self.assertTrue(msg.get("is_error"))
+
+    def test_last_user_question_and_open_in_inspector_route_cleanly(self):
+        state = {}
+        init_state(state)
+        self.assertIsNone(last_user_question(state))
+
+        append_user_turn(state, "PEAS là gì?")
+        append_assistant_turn(state, "Trả lời", [])
+        self.assertEqual(last_user_question(state), "PEAS là gì?")
+
+        open_in_inspector(state, "  Thuật toán A*  ")
+        self.assertEqual(state["active_page"], "inspector")
+        self.assertEqual(state["dbg_q"], "Thuật toán A*")
+        self.assertTrue(state["dbg_auto"])
 
 
 if __name__ == "__main__":

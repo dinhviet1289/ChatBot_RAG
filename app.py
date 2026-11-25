@@ -59,8 +59,11 @@ except Exception as e:
     st.stop()
 
 state = st.session_state
-NAV = [("documents", ":material/folder_open:", "Kho tài liệu"),
-       ("inspector", ":material/science:", "Kiểm tra truy hồi")]
+NAV = [
+    ("conversation", ":material/forum:", "Trợ lý hỏi đáp"),
+    ("documents", ":material/folder_open:", "Kho tài liệu"),
+    ("inspector", ":material/science:", "Kiểm tra truy hồi"),
+]
 
 _BRAND_SVG = (
     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" '
@@ -107,8 +110,10 @@ with st.sidebar:
             st.button(":material/delete:", key=f"del_{conv['id']}",
                       help="Xóa cuộc hội thoại",
                       on_click=_on_delete_conv, args=(conv["id"],))
-    st.button(":material/delete_sweep: Xóa tất cả", key="clear_all",
-              width="stretch", on_click=_on_clear_all)
+    has_history = len(state["conversations"]) > 1 or bool(state["conversations"][0]["messages"])
+    if has_history:
+        st.button(":material/delete_sweep: Xóa tất cả", key="clear_all",
+                  width="stretch", on_click=_on_clear_all)
     st.divider()
     st.caption("Hệ thống")
     st.markdown(render_system_card_html(bundle["config"]), unsafe_allow_html=True)

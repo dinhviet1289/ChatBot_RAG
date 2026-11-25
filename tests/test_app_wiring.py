@@ -49,13 +49,22 @@ class TestAppWiring(unittest.TestCase):
         self.assertIn('setdefault("active_page", "conversation")', state_src)
 
     def test_nav_buttons_each_have_a_concrete_job(self):
-        # Nút "Hỏi đáp" thừa: mở cuộc hội thoại đã vào màn hình chat rồi. Nav chỉ
-        # giữ Kho tài liệu + Kiểm tra truy hồi (debug); màn hình hội thoại đi lối sidebar.
         src = (ROOT / "app.py").read_text(encoding="utf-8")
-        self.assertNotIn('"Hỏi đáp")', src)
-        self.assertIn('"Kiểm tra truy hồi")', src)
+        self.assertIn('("conversation"', src)
+        self.assertIn('"Trợ lý hỏi đáp"', src)
+        self.assertIn('"Kho tài liệu"', src)
+        self.assertIn('"Kiểm tra truy hồi"', src)
+        self.assertIn("has_history", src)
         self.assertIn("render_conversation_view", src)
         self.assertIn('state["active_page"] = "conversation"', src)
+
+        docs_src = (ROOT / "views" / "documents.py").read_text(encoding="utf-8")
+        self.assertNotIn('"Chỉ mục"', docs_src)
+        self.assertIn('"doc_sort"', docs_src)
+
+        conv_src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
+        self.assertIn("render_source_pills_html", conv_src)
+        self.assertIn("open_in_inspector", conv_src)
 
     def test_sidebar_navigation_never_double_reruns(self):
         # Click button đã tự rerun một lần; gọi thêm st.rerun() trong handler là

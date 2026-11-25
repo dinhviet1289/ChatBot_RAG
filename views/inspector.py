@@ -58,9 +58,10 @@ def render_inspector_view(bundle):
     with left:
         with st.container(border=True):
             with st.form("dbg_form", border=False):
-                dq = st.text_input(
+                dq = st.text_area(
                     "Câu hỏi kiểm tra",
                     key="dbg_q",
+                    height=88,
                     placeholder="Nhập câu hỏi để xem tầng truy hồi chọn tài liệu nào...",
                 )
                 clicked = st.form_submit_button(":material/science: Chạy kiểm tra",
