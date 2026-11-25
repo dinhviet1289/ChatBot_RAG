@@ -59,10 +59,14 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertEqual(select_query_terms("", df, 3), [])
         self.assertEqual(select_query_terms("peas", {}, 0), ["peas"])
 
-    def test_catalog_covers_all_44_indexed_docs_and_13_links(self):
+    def test_catalog_covers_all_44_indexed_docs_and_links(self):
         self.assertEqual(len(CATALOG), 44)
-        self.assertEqual(len(DRIVE_LINKS), 13)
-        self.assertLessEqual(set(DRIVE_LINKS), set(CATALOG))
+        self.assertEqual(len(DRIVE_LINKS), 44)
+        self.assertEqual(set(DRIVE_LINKS), set(CATALOG))
+        self.assertEqual(len(set(DRIVE_LINKS.values())), 44)
+        for url in DRIVE_LINKS.values():
+            self.assertTrue(url.startswith("https://drive.google.com/file/d/"))
+            self.assertTrue(url.endswith("/view"))
         for meta in CATALOG.values():
             self.assertIn(meta["category"], CATEGORY_ORDER)
             self.assertTrue(meta["sample_question"])

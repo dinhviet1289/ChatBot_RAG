@@ -2,26 +2,57 @@
 
 Module thuần (chỉ stdlib), không import Streamlit/LangChain để unit test chạy
 được trong môi trường tối giản. doc_id khớp đúng ``manifest.json`` đi kèm
-``data/faiss_index_huggingface`` (44 tài liệu, 15.510 chunks); 13 tài liệu có
-link Google Drive (giữ nguyên từ ``app.py``), 31 tài liệu còn lại chỉ có trong
-chỉ mục. Tiêu đề hiển thị đã làm sạch từ tiêu đề thô trong chỉ mục.
+``data/faiss_index_huggingface`` (44 tài liệu, 15.510 chunks); 44/44 tài liệu
+đều có link Google Drive trỏ tới bản tài liệu trong thư mục ``ChatboxRAG``.
+Tiêu đề hiển thị đã làm sạch từ tiêu đề thô trong chỉ mục.
 """
 
-# 13 link Google Drive giữ nguyên văn từ app.py (không sửa URL).
+# 44/44 link Google Drive tương ứng từng doc_id trong CATALOG.
 DRIVE_LINKS = {
-    "elc3008_ch01": "https://drive.google.com/file/d/1OuFuDhWsIcK4IsV9o7mW02uQfX1AO3fz/view",
-    "elc3008_ch02": "https://drive.google.com/file/d/13JG6IubVp0y6a5jEymnxIcUIICyORelA/view",
-    "elc3008_ch03": "https://drive.google.com/file/d/1lC2LfXcP0t4E7acxMl56AMXazhvB7gHS/view",
-    "elc3008_ch04": "https://drive.google.com/file/d/10GLMg4zfZeKC6LykmgsXTwOYXql_2bMt/view",
-    "elc3008_ch05": "https://drive.google.com/file/d/1iAyf50-bbhlDs4f_HjaOPwyhV25kXZgc/view",
-    "elc3008_ch06": "https://drive.google.com/file/d/195mzC9tyMAXfAHEGpnPpGi_Gj9i8ZOSA/view",
+    "elc3008_ch01": "https://drive.google.com/file/d/1CVTF2bgazNNNClFcxsQ-q3Ynq7sV_8K7/view",
+    "elc3008_ch02": "https://drive.google.com/file/d/1LrKzoc3u8i8e9Q7UEv7gNomM29QlyFVL/view",
+    "elc3008_ch03": "https://drive.google.com/file/d/1vbnTrAOYfWiCTwGdLBv6eJnSW1mNWAu9/view",
+    "elc3008_ch04": "https://drive.google.com/file/d/1nXlQE2-0vltSq6_skfdtNwPY-kVm4Bwp/view",
+    "elc3008_ch05": "https://drive.google.com/file/d/1R1yb3tx_ehUbXP_H6IFyeVCWj4PDBf13/view",
+    "elc3008_ch06": "https://drive.google.com/file/d/1SpmUR49gUNk9p_Kd126oIk3bdFrSzmy2/view",
     "cs188_ch01_search": "https://drive.google.com/file/d/1GlZCchn7FYAdqI7t0dgP1SEm3h30NoOJ/view",
     "cs188_ch02_csps": "https://drive.google.com/file/d/1tcnUk-VTUCybBRoo2kVizoBOMZ9I4r4t/view",
     "cs188_ch03_games": "https://drive.google.com/file/d/1MQKM3silMKER0Hl14S0Zc2GEk1RY_-4D/view",
     "udl_ch15_gans": "https://drive.google.com/file/d/10zOfwOLlxt34Ir_EuJSYkAiyCqKAW9B8/view",
     "udl_ch17_vaes": "https://drive.google.com/file/d/1Q0XeFQPZ6q07qlAPevYNQyCaA9LmV3R6/view",
-    "build_a_large_language_model_from_scratc": "https://drive.google.com/file/d/16kEpjYRsEHpP4LZ9xT2cOcUxKExDTtkz/view",
-    "hands_on_large_language_models_language_": "https://drive.google.com/file/d/1rvB05bbu9rsoThY7ps3ksZ1RHQ4tk7VL/view",
+    "build_a_large_language_model_from_scratc": "https://drive.google.com/file/d/1kxupLqBLMsT2_CzKdeyyeBkM62UDA_3e/view",
+    "hands_on_large_language_models_language_": "https://drive.google.com/file/d/13wzspmK-0dL7fBvhU5fijc_DnwzolEv7/view",
+    "gt_tri_tue_nhan_tao": "https://drive.google.com/file/d/1IDRgF-EEtn9r2fbIGU6y0ihLwVGBHAg1/view",
+    "ttnt_nguyen_quang_hoan": "https://drive.google.com/file/d/1_OovoUfCoV1dRIZsqEyORV_mMcqRiSxZ/view",
+    "ttnt_tu_minh_phuong": "https://drive.google.com/file/d/1O_1fvUFAr46tnZ3IbzvxmiNT0hXRu3mS/view",
+    "it3190_tai_lieu_doc": "https://drive.google.com/file/d/1PTkq3sTzaUy3an3r22TXH66QYlbOe9l9/view",
+    "ml_co_ban": "https://drive.google.com/file/d/1BYTdiCnS0H2EotwVRV7DfNsLwh4USpwB/view",
+    "artificial_intelligence_a_modern_approac": "https://drive.google.com/file/d/12DRe3ZnI5aiaFeydB5d1HOB0Ch6gq_8l/view",
+    "aima_4e_solutions": "https://drive.google.com/file/d/1j49ocnZVErR3VyIeqdZirbmok_Df2RbW/view",
+    "hands_on_machine_learning_with_scikit_le": "https://drive.google.com/file/d/1N0WTLyzaMEvUEu51pl0elxhGyQEmSk2j/view",
+    "introduction_to_machine_learning_with_py": "https://drive.google.com/file/d/1S3dVhd7M54TtsGBQ-6pxXch0LjtZgt2Q/view",
+    "ml_algorithms_bonaccorso": "https://drive.google.com/file/d/1XToZGYaqZAjgqaEiwVsfMEZOuuxoxNXt/view",
+    "ai_and_machine_learning_for_coders_a_pro": "https://drive.google.com/file/d/1UVyW4qUivsiZH7ANWn0FdB5xTvg-xZR6/view",
+    "ai_finance_hilpisch": "https://drive.google.com/file/d/1DU9W9xyXioYgcQjqEODnE3vmHfSmBOT5/view",
+    "analytical_skills_for_ai_and_data_scienc": "https://drive.google.com/file/d/1c6bnOLWrOcgAOg1rjXfHuBzCoksAApVp/view",
+    "l01_gioi_thieu": "https://drive.google.com/file/d/15yWBsFgB8N1eFyOK8bCVSLJW4uQqTzYC/view",
+    "l02_tien_xu_ly": "https://drive.google.com/file/d/141S9EG_wOu_vg1oSJ6g5_dcJpmxqub3j/view",
+    "l03_danh_gia": "https://drive.google.com/file/d/1acbh-StAiFKD-2Zg2I0hwuDTdpWr5qcV/view",
+    "l04_hoi_quy": "https://drive.google.com/file/d/1T0IeodnH7cF-IhHwpqe6qcklAT6b_2EU/view",
+    "l05_phan_lop_knn": "https://drive.google.com/file/d/1WL9d_2x1Pk5sxIdnYI8EBa6dCivOCIX3/view",
+    "l06_xac_suat": "https://drive.google.com/file/d/1zDgWi-v-51XKpO7Xifjks4KLMeqeq0KN/view",
+    "l07_cay_quyet_dinh": "https://drive.google.com/file/d/1CZmtdu-dzCnLBpWoeBhuIoXlmwcI-_Qm/view",
+    "l08_mang_noron": "https://drive.google.com/file/d/1RSNm-U8DbFIHBbK4QRpxzGhX0udcDxSN/view",
+    "l09_svm": "https://drive.google.com/file/d/1r9CAGLmW-1MwHGSie80JEONs0BpCC2-4/view",
+    "l10_phan_cum": "https://drive.google.com/file/d/1_c-ttbU8M0CihTg80G9xMxr5-s3J05OE/view",
+    "l11_luat_ket_hop": "https://drive.google.com/file/d/1dMa_kpSY9kLnB6tNcmpnVluQok4KjWm4/view",
+    "aib_ch01": "https://drive.google.com/file/d/1mQiSiFKrsc7dzO2pwFlt2gbKNhUS8kj0/view",
+    "aib_ch02": "https://drive.google.com/file/d/10jvpbKK-SiZ-QgDEEYTs6-toFo2Mo7nH/view",
+    "aib_ch03": "https://drive.google.com/file/d/1mPkKvJ0ilnFb_OoplDdnPJf3Vd7F8fQl/view",
+    "ai_engineering_for_true_epub_chip_huyen_": "https://drive.google.com/file/d/15bXMNpyYqNanTwN_lR4XYmn-0EoF48te/view",
+    "ai_powered_developer_build_software_with": "https://drive.google.com/file/d/1HnTvQtrGCOJV8lPeO7Gx4sFxq8qC1XA0/view",
+    "ai_for_student_vi": "https://drive.google.com/file/d/1nsrV_Yn9_4HLWKZpy8mVXItOeATNdXYt/view",
+    "machine_learning_andrew_ng_pdf_ban_dich_": "https://drive.google.com/file/d/1Rp7eYVa9uXnF2H9i98SRaom5cneZki-3/view",
 }
 
 # 8 nhóm học phần theo đúng thứ tự hiển thị của trang "Kho tài liệu".
