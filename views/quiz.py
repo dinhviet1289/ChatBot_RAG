@@ -1,6 +1,7 @@
 """Luyện tập trắc nghiệm (Mini-Quiz) — sinh câu hỏi A/B/C/D bám sát học liệu trong FAISS."""
 
 import html
+import logging
 import uuid
 
 import streamlit as st
@@ -14,6 +15,7 @@ from rag_engine_web import (
 from ui.catalog import CATEGORY_ORDER
 from ui.quiz import (
     QUIZ_TOPICS,
+    QuizParseError,
     format_quiz_context,
     grade_quiz,
     parse_quiz_response,
@@ -21,6 +23,7 @@ from ui.quiz import (
 )
 from ui.theme import normalize_latex_for_streamlit, render_page_header_html
 
+logger = logging.getLogger(__name__)
 ALL_CATEGORIES_LABEL = "Tất cả (44 học liệu)"
 
 
@@ -129,25 +132,47 @@ def render_quiz_view(bundle):
             else (cfg.get("groq_keys") or [])
         )
         make_quiz = (bundle or {}).get("make_quiz_chain") or (bundle or {}).get("make_answer_chain")
+        pairs = rotation_pairs(keys, model_chain(cfg.get("llm_model") or ""))
         served = {}
         topic_hint = (topic_q or "").strip() or sel_cat
+        quiz_inputs = {
+            "num_questions": int(num_q),
+            "topic_hint": topic_hint,
+            "context": format_quiz_context(sampled),
+        }
+        questions = None
         with st.spinner("Đang tổng hợp bộ câu hỏi bám sát giáo trình..."):
             try:
-                raw = invoke_text(
-                    make_quiz,
-                    rotation_pairs(keys, model_chain(cfg.get("llm_model") or "")),
-                    {
-                        "num_questions": int(num_q),
-                        "topic_hint": topic_hint,
-                        "context": format_quiz_context(sampled),
-                    },
-                    report=lambda model, key, fell_back: served.update(
-                        model=model, key=key, fell_back=fell_back
-                    ),
-                )
-                questions = parse_quiz_response(raw, sampled, expected_count=int(num_q))
-            except ValueError:
-                st.error("Mô hình trả về định dạng JSON chưa chuẩn. Bấm **Tạo bộ câu hỏi mới** để thử lại.")
+                attempt_pairs = list(pairs)
+                for attempt_idx in range(2):
+                    if not attempt_pairs:
+                        break
+                    served.clear()
+                    raw = invoke_text(
+                        make_quiz,
+                        attempt_pairs,
+                        quiz_inputs,
+                        report=lambda model, key, fell_back: served.update(
+                            model=model, key=key, fell_back=fell_back
+                        ),
+                    )
+                    try:
+                        questions = parse_quiz_response(raw, sampled, expected_count=int(num_q))
+                        break
+                    except QuizParseError as parse_exc:
+                        logger.warning(
+                            "Quiz JSON parse thất bại (attempt %d, model=%s): %s",
+                            attempt_idx + 1,
+                            served.get("model"),
+                            parse_exc,
+                        )
+                        if attempt_idx == 1:
+                            raise
+                        attempt_pairs = [
+                            (m, k) for m, k in attempt_pairs if m != served.get("model")
+                        ] or attempt_pairs[1:]
+            except QuizParseError:
+                st.error("Mô hình trả về định dạng JSON chưa chuẩn sau khi thử lại. Bấm **Tạo bộ câu hỏi mới** hoặc chọn chủ đề khác.")
                 return
             except Exception as exc:
                 st.error(describe_llm_error(exc))

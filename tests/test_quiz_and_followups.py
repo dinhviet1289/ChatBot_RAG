@@ -2,7 +2,13 @@ import random
 import unittest
 
 from rag_engine_web import invoke_text
-from ui.quiz import format_quiz_context, grade_quiz, parse_quiz_response, sample_quiz_chunks
+from ui.quiz import (
+    QuizParseError,
+    format_quiz_context,
+    grade_quiz,
+    parse_quiz_response,
+    sample_quiz_chunks,
+)
 from ui.state import build_followup_questions
 
 
@@ -77,8 +83,42 @@ class TestQuizAndFollowups(unittest.TestCase):
         self.assertEqual(qs[0]["trang"], "5")
         self.assertTrue(qs[0]["url"].startswith("https://"))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(QuizParseError):
             parse_quiz_response("not json", sampled)
+
+    def test_parse_quiz_response_recovers_latex_trailing_brackets_lists_and_truncated_arrays(self):
+        sampled = [
+            {
+                "source_idx": 1,
+                "doc_id": "elc3008_ch03",
+                "doc_title": "Slide ELC3008 — Chương 3",
+                "trang": "10",
+                "url": "https://drive.google.com/file/d/1vbnTrAOYfWiCTwGdLBv6eJnSW1mNWAu9/view",
+            }
+        ]
+        messy_raw = r"""<think>đang suy nghĩ chưa đóng thẻ
+[
+  {
+    "question": "Độ phức tạp của thuật toán $\alpha$-$\beta$ với nhánh \frac{b}{2}?",
+    "options": ["A. $O(b^d)$", "B. O(b^{d/2})", "C. \\alpha + \\beta", "D. O(1)"],
+    "correct_answer": "B",
+    "explanation": "Cắt tỉa \alpha-\beta giảm số nhánh [Nguồn 1].",
+    "source_idx": 1,
+  },
+  {
+    "question": "Hàng đợi ưu tiên dùng trong thuật toán nào?",
+    "choices": {"A": "DFS", "B": "UCS", "C": "Hill", "D": "Random"},
+    "answer": 1,
+    "explanation": "UCS mở rộng nút theo chi phí g(n).",
+  },
+  {
+    "question": "Câu thứ 3 bị cắt giữa chừng chưa kịp đóng JSON"""
+        qs = parse_quiz_response(messy_raw, sampled, expected_count=5)
+        self.assertEqual(len(qs), 2)
+        self.assertEqual(qs[0]["answer"], "B")
+        self.assertEqual(qs[0]["options"]["A"], "$O(b^d)$")
+        self.assertEqual(qs[1]["answer"], "B")
+        self.assertEqual(qs[1]["options"]["B"], "UCS")
 
     def test_grade_quiz_computes_score_and_percentage(self):
         qs = [

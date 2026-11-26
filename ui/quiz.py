@@ -17,10 +17,18 @@ QUIZ_TOPICS = [
 _PAGE_RE = re.compile(r"<!--\s*page:\s*\d+\s*-->")
 _WS_RE = re.compile(r"\s+")
 _THINK_RE = re.compile(r"<think>[\s\S]*?</think>", re.IGNORECASE)
+_THINK_TAG_RE = re.compile(r"</?think>", re.IGNORECASE)
 _OPT_PREFIX_RE = re.compile(r"^[A-Da-d][\.\):]\s*")
+_VALID_OR_LONE_BS_RE = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})|\\')
+_TRAILING_COMMA_RE = re.compile(r",\s*([}\]])")
+_LETTERS = ("A", "B", "C", "D")
 
 
-def _clean_excerpt(text, max_len=1100):
+class QuizParseError(ValueError):
+    """Raised when an LLM quiz response contains no valid multiple-choice items."""
+
+
+def _clean_excerpt(text, max_len=850):
     cleaned = _PAGE_RE.sub(" ", text or "")
     cleaned = _WS_RE.sub(" ", cleaned).strip()
     if len(cleaned) > max_len:
@@ -123,63 +131,108 @@ def format_quiz_context(sampled_chunks):
     return "\n\n---\n\n".join(blocks)
 
 
-def _strip_json_wrapper(raw_text):
-    text = _THINK_RE.sub("", str(raw_text or "")).strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```[A-Za-z0-9_-]*\s*", "", text)
-        text = re.sub(r"\s*```$", "", text).strip()
-    start_arr = text.find("[")
-    start_obj = text.find("{")
-    if start_arr != -1 and (start_obj == -1 or start_arr < start_obj):
-        end_arr = text.rfind("]")
-        if end_arr > start_arr:
-            return text[start_arr: end_arr + 1]
-    if start_obj != -1:
-        end_obj = text.rfind("}")
-        if end_obj > start_obj:
-            return text[start_obj: end_obj + 1]
-    return text
+def _sanitize_json_text(text):
+    """Strip LLM thinking tags/fences, trailing commas, and unescaped LaTeX backslashes."""
+    cleaned = _THINK_RE.sub("", str(text or ""))
+    cleaned = _THINK_TAG_RE.sub("", cleaned)
+    cleaned = re.sub(r"```[A-Za-z0-9_-]*\s*", "", cleaned).replace("```", "").strip()
+    cleaned = _VALID_OR_LONE_BS_RE.sub(
+        lambda m: m.group(0) if m.group(1) else r"\\",
+        cleaned,
+    )
+    cleaned = _TRAILING_COMMA_RE.sub(r"\1", cleaned)
+    return cleaned
+
+
+def _extract_raw_items(sanitized):
+    """Extract question dicts from full JSON or salvage complete items from a truncated array."""
+    if not sanitized:
+        return []
+    decoder = json.JSONDecoder(strict=False)
+    for m in re.finditer(r"[\[\{]", sanitized):
+        try:
+            obj, _ = decoder.raw_decode(sanitized, m.start())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, list) and any(isinstance(it, dict) for it in obj):
+            return obj
+        if isinstance(obj, dict):
+            nested = obj.get("questions") or obj.get("items") or obj.get("quiz")
+            if isinstance(nested, list) and nested:
+                return nested
+
+    salvaged = []
+    pos = 0
+    while True:
+        idx = sanitized.find("{", pos)
+        if idx == -1:
+            break
+        try:
+            obj, end = decoder.raw_decode(sanitized, idx)
+        except json.JSONDecodeError:
+            pos = idx + 1
+            continue
+        if isinstance(obj, dict) and "question" in obj and ("options" in obj or "choices" in obj):
+            salvaged.append(obj)
+        pos = end
+    return salvaged
+
+
+def _normalize_options(raw_opts):
+    if isinstance(raw_opts, dict):
+        pairs = (
+            (letter, raw_opts.get(letter) or raw_opts.get(letter.lower()) or "")
+            for letter in _LETTERS
+        )
+    elif isinstance(raw_opts, list) and len(raw_opts) >= 4:
+        pairs = zip(_LETTERS, raw_opts[:4])
+    else:
+        return {}
+
+    options = {}
+    for letter, raw_val in pairs:
+        val = _OPT_PREFIX_RE.sub("", str(raw_val or "").strip()).strip()
+        if val:
+            options[letter] = val
+    return options if len(options) == 4 else {}
+
+
+def _normalize_answer(raw_ans, options):
+    if isinstance(raw_ans, int) and not isinstance(raw_ans, bool) and 0 <= raw_ans < 4:
+        cand = _LETTERS[raw_ans]
+        return cand if cand in options else None
+    ans = str(raw_ans or "").strip()
+    if not ans:
+        return None
+    upper = ans.upper()
+    if upper[0] in _LETTERS and (len(upper) == 1 or upper[1] in (".", ")", ":", " ")):
+        return upper[0] if upper[0] in options else None
+    stripped = _OPT_PREFIX_RE.sub("", ans).strip().casefold()
+    return next((k for k, v in options.items() if v.casefold() == stripped), None)
 
 
 def parse_quiz_response(raw_text, sampled_chunks, expected_count=5):
     """Parse and validate LLM JSON quiz output and bind verified PDF source metadata."""
-    cleaned = _strip_json_wrapper(raw_text)
-    if not cleaned:
-        raise ValueError("Phản hồi từ mô hình rỗng.")
-    data = json.loads(cleaned)
-    if isinstance(data, dict):
-        data = data.get("questions") or data.get("items") or []
-    if not isinstance(data, list):
-        raise ValueError("Định dạng JSON trắc nghiệm không phải danh sách câu hỏi.")
+    sanitized = _sanitize_json_text(raw_text)
+    raw_items = _extract_raw_items(sanitized)
+    if not raw_items:
+        raise QuizParseError("Không trích xuất được dữ liệu JSON câu hỏi.")
 
     chunks = list(sampled_chunks or [])
     questions = []
-    for item in data:
+    for item in raw_items:
         if not isinstance(item, dict):
             continue
         q_text = str(item.get("question") or "").strip()
-        raw_opts = item.get("options")
-        if not q_text or not isinstance(raw_opts, dict):
-            continue
-        options = {}
-        for letter in ("A", "B", "C", "D"):
-            val = raw_opts.get(letter) or raw_opts.get(letter.lower()) or ""
-            val = _OPT_PREFIX_RE.sub("", str(val).strip()).strip()
-            if val:
-                options[letter] = val
-        if len(options) != 4:
+        options = _normalize_options(item.get("options") or item.get("choices"))
+        ans = _normalize_answer(
+            item.get("answer") if item.get("answer") is not None else (item.get("correct_answer") or item.get("correct")),
+            options,
+        )
+        if not q_text or not options or not ans:
             continue
 
-        ans = str(item.get("answer") or "").strip().upper()
-        if ans and ans[0] in ("A", "B", "C", "D") and (len(ans) == 1 or ans[1] in (".", ")", ":")):
-            ans = ans[0]
-        if ans not in options:
-            matched = next((k for k, v in options.items() if v.casefold() == ans.casefold()), None)
-            if not matched:
-                continue
-            ans = matched
-
-        explanation = str(item.get("explanation") or "").strip()
+        explanation = str(item.get("explanation") or item.get("reason") or "").strip()
         src_meta = {}
         if chunks:
             raw_idx = item.get("source_idx")
@@ -204,7 +257,7 @@ def parse_quiz_response(raw_text, sampled_chunks, expected_count=5):
             break
 
     if not questions:
-        raise ValueError("Không trích xuất được câu hỏi trắc nghiệm hợp lệ.")
+        raise QuizParseError("Không trích xuất được câu hỏi trắc nghiệm hợp lệ.")
     return questions
 
 

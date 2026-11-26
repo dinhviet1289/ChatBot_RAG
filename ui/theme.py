@@ -1240,7 +1240,7 @@ a:hover { color:var(--primary-end); }
   color:var(--danger); background:rgba(185,28,28,0.06); border-color:transparent; }
 
 .rag-brand { background:#FFFFFF; border:1px solid var(--border); border-radius:12px;
-  padding:9px 11px; box-shadow:0 1px 3px rgba(15,23,42,0.04); margin-bottom:2px; }
+  padding:9px 11px; box-shadow:0 1px 3px rgba(15,23,42,0.04); margin-bottom:6px; }
 .rag-brand-top { display:flex; align-items:center; gap:9px; }
 .rag-brand-logo { width:32px; height:32px; border-radius:9px; flex-shrink:0;
   background:linear-gradient(135deg,var(--primary),var(--primary-2));

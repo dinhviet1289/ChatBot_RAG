@@ -153,9 +153,10 @@ QUY TẮC:
 1. Mỗi câu hỏi phải kiểm tra kiến thức thực sự trong NGỮ CẢNH (không tự bịa kiến thức ngoài tài liệu).
 2. Trình bày câu hỏi và 4 phương án A, B, C, D rõ ràng bằng tiếng Việt (giữ thuật ngữ chuyên ngành tiếng Anh nếu cần).
 3. 4 phương án nhiễu phải hợp lý, độ dài tương đương, chỉ có đúng 1 đáp án đúng.
-4. Phần "explanation" giải thích ngắn gọn vì sao đáp án đó đúng.
+4. Phần "explanation" viết súc tích 1-2 câu giải thích vì sao đáp án đó đúng.
 5. "source_idx" là số nguyên (1, 2, ...) khớp với nhãn [Nguồn X | ...] chứa thông tin của câu hỏi.
-6. CHỈ trả về JSON hợp lệ dạng mảng (không kèm markdown fence hay chữ thừa ngoài JSON):
+6. KHÔNG dùng dấu gạch chéo ngược \ (tránh LaTeX thô) bên trong JSON; viết biểu thức bằng ký tự thường (vd: O(b^d), alpha-beta, f(n) = g(n) + h(n)).
+7. CHỈ trả về đúng một mảng JSON hợp lệ (không suy luận mở đầu, không markdown fence, không giải thích ngoài JSON):
 [
   {{
     "question": "Nội dung câu hỏi?",
@@ -407,7 +408,11 @@ def get_rag_bundle():
         return prompt_template | ChatGroq(model=model, api_key=key, temperature=0) | StrOutputParser()
 
     def make_quiz_chain(model, key):
-        return quiz_prompt_template | ChatGroq(model=model, api_key=key, temperature=0.3) | StrOutputParser()
+        return (
+            quiz_prompt_template
+            | ChatGroq(model=model, api_key=key, temperature=0.2, max_tokens=2500)
+            | StrOutputParser()
+        )
 
     doc_summary = summarize_docstore(db.docstore._dict)
     config = {
