@@ -53,21 +53,21 @@ def render_inspector_view(bundle):
         unsafe_allow_html=True,
     )
 
-    left, right = st.columns([1.28, 1.92], gap="medium")
     auto_run = bool(st.session_state.pop("dbg_auto", False))
-    with left:
-        with st.container(border=True):
-            with st.form("dbg_form", border=False):
-                dq = st.text_area(
-                    "Câu hỏi kiểm tra",
-                    key="dbg_q",
-                    height=88,
-                    placeholder="Nhập câu hỏi để xem tầng truy hồi chọn tài liệu nào...",
-                )
-                clicked = st.form_submit_button(":material/science: Chạy kiểm tra",
-                                                type="primary", width="stretch")
-            st.caption("Thử nhanh mẫu chuẩn")
-            for label, sample_q in SAMPLE_PROBES:
+    with st.container(border=True):
+        with st.form("dbg_form", border=False):
+            dq = st.text_area(
+                "Câu hỏi kiểm tra",
+                key="dbg_q",
+                height=78,
+                placeholder="Nhập câu hỏi để xem tầng truy hồi chọn tài liệu nào...",
+            )
+            clicked = st.form_submit_button(":material/science: Chạy kiểm tra",
+                                            type="primary", width="stretch")
+        st.caption("Thử nhanh mẫu chuẩn")
+        p_cols = st.columns(len(SAMPLE_PROBES))
+        for idx, (label, sample_q) in enumerate(SAMPLE_PROBES):
+            with p_cols[idx]:
                 st.button(
                     f":material/bolt: {label}",
                     key=f"probe_{label}",
@@ -79,26 +79,24 @@ def render_inspector_view(bundle):
     dq = (dq or "").strip()
     res = None
     if (clicked or auto_run) and dq:
-        with right:
-            with st.spinner("Đang truy hồi tài liệu..."):
-                try:
-                    res = inspect_retrieval(bundle, dq)
-                except Exception as exc:
-                    st.error(f"Không truy hồi được ({type(exc).__name__}).")
-                    res = st.session_state.get("dbg_res")
-                else:
-                    st.session_state["dbg_res"] = res
+        with st.spinner("Đang truy hồi tài liệu..."):
+            try:
+                res = inspect_retrieval(bundle, dq)
+            except Exception as exc:
+                st.error(f"Không truy hồi được ({type(exc).__name__}).")
+                res = st.session_state.get("dbg_res")
+            else:
+                st.session_state["dbg_res"] = res
     elif st.session_state.get("dbg_res"):
         res = st.session_state["dbg_res"]
 
-    with right:
-        if not res:
-            st.markdown(render_retrieval_empty_html(embed_dim), unsafe_allow_html=True)
-        else:
-            st.markdown(render_retrieval_summary_html(res), unsafe_allow_html=True)
-            tab_s2, tab_s1 = st.tabs(["Stage 2 · Rerank", "Stage 1 · Ứng viên"])
-            with tab_s2:
-                st.markdown(render_retrieval_stage2_html(res), unsafe_allow_html=True)
-            with tab_s1:
-                st.markdown(render_retrieval_stage1_html(res, collapsible=False),
-                            unsafe_allow_html=True)
+    if not res:
+        st.markdown(render_retrieval_empty_html(embed_dim), unsafe_allow_html=True)
+    else:
+        st.markdown(render_retrieval_summary_html(res), unsafe_allow_html=True)
+        tab_s2, tab_s1 = st.tabs(["Stage 2 · Rerank", "Stage 1 · Ứng viên"])
+        with tab_s2:
+            st.markdown(render_retrieval_stage2_html(res), unsafe_allow_html=True)
+        with tab_s1:
+            st.markdown(render_retrieval_stage1_html(res, collapsible=False),
+                        unsafe_allow_html=True)

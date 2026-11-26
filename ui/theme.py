@@ -1463,6 +1463,8 @@ textarea:focus-visible, select:focus-visible, [role="tab"]:focus-visible {
   transition:background-color var(--speed) var(--ease), color var(--speed) var(--ease),
     border-color var(--speed) var(--ease); }
 
+[data-testid="stTabs"], [role="tabpanel"], [role="tabpanel"] > div {
+  max-width:100%; min-width:0; width:100%; }
 [data-testid="stTabs"] [data-baseweb="tab-list"] { gap:6px; border-bottom:1px solid var(--border); }
 [data-testid="stTabs"] [data-baseweb="tab"] { border-radius:10px 10px 0 0; padding:8px 14px;
   font-weight:600; font-size:0.86rem; color:var(--muted); }
@@ -1634,7 +1636,7 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
   border-bottom:1px solid var(--border); font-family:var(--font-mono); font-size:0.73rem;
   white-space:nowrap; }
 .rag-stage1-table td { padding:6px 6px; border-bottom:1px solid rgba(15,23,42,0.07); color:var(--text); }
-.rag-stage1-table td:nth-child(5) { max-width:200px; overflow:hidden; text-overflow:ellipsis;
+.rag-stage1-table td:nth-child(5) { max-width:180px; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; }
 .rag-stage1-table td.rag-mono,
 .rag-stage1-table td:last-child { white-space:nowrap; }
@@ -1762,21 +1764,30 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
   .rag-lab-summary, .rag-kpi-grid { grid-template-columns:1fr; }
   .rag-kpi-sub { white-space:normal; overflow-wrap:anywhere; }
   [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {
-    flex-direction:row !important; flex-wrap:nowrap !important; align-items:center; gap:4px; }
-  [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child,
+    display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+    align-items:center !important; gap:4px !important; width:100% !important; }
+  [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+    flex:1 1 auto !important; width:calc(100% - 38px) !important; min-width:0 !important; }
+  [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child > div,
+  [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child [data-testid="stElementContainer"],
   [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child [data-testid="stButton"],
   [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child button {
-    flex:1 1 0% !important; width:100% !important; min-width:0 !important; }
+    flex:none !important; width:100% !important; min-width:0 !important; }
   [data-testid="stSidebar"] [class*="st-key-conv_"] button [data-testid="stMarkdownContainer"] {
     width:100% !important; min-width:0 !important; }
   [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
-    flex:0 0 auto !important; width:auto !important; }
+    flex:0 0 34px !important; width:34px !important; min-width:34px !important; }
   [data-testid="stMain"] [data-testid="stHorizontalBlock"] { flex-direction:column; gap:10px; }
   [data-testid="stMain"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
     width:100% !important; flex:1 1 100% !important; }
-  [data-testid="stChatMessage"] table { display:block; width:100%; overflow-x:auto;
-    -webkit-overflow-scrolling:touch; }
-  [data-testid="stChatMessage"] th, [data-testid="stChatMessage"] td { min-width:115px; }
+  [data-testid="stChatMessage"] { padding:12px 12px; gap:8px; }
+  [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {
+    overflow-x:auto !important; max-width:100% !important; -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin; }
+  [data-testid="stChatMessage"] table { display:table !important; width:max-content !important;
+    min-width:100% !important; }
+  [data-testid="stChatMessage"] th, [data-testid="stChatMessage"] td {
+    min-width:140px !important; max-width:230px !important; white-space:normal !important; }
   [data-testid="stChatMessage"]:has([aria-label="Chat message from user"]),
   [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
     max-width:94% !important; }
