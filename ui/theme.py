@@ -1187,7 +1187,7 @@ def render_corpus_overview_html(rows, embed_dim=384,
         f'<div class="rag-kpi-sub rag-mono" title="{html.escape(str(embed_model))}">{html.escape(str(embed_model).split("/")[-1])}</div>'
         f'</div>'
         f'<div class="rag-kpi-card">'
-        f'<div class="rag-kpi-lbl">NGUỒN PDF DRIVE</div>'
+        f'<div class="rag-kpi-lbl">NGUỒN PDF GỐC</div>'
         f'<div class="rag-kpi-val rag-mono">{drive_docs} / {total_docs}</div>'
         f'<div class="rag-kpi-sub">{len(ordered_cats)} nhóm học phần</div>'
         f'</div>'
@@ -1242,11 +1242,14 @@ def render_doc_card_html(row, max_chunks, total_chunks):
     lang_esc = html.escape(lang)
     lang_cls = "rag-badge rag-badge-en" if lang == "EN" else "rag-badge rag-badge-vi"
 
-    has_url = isinstance(row.get("url"), str) and row["url"].startswith("https://")
-    src_badge = (
-        '<span class="rag-badge rag-badge-ok">PDF Drive</span>'
-        if has_url else '<span class="rag-badge rag-badge-dim">Vector Index</span>'
-    )
+    url = row.get("url")
+    has_url = isinstance(url, str) and url.startswith("https://")
+    if has_url and "drive.google.com" in url:
+        src_badge = '<span class="rag-badge rag-badge-ok">PDF Drive</span>'
+    elif has_url:
+        src_badge = '<span class="rag-badge rag-badge-ok">PDF Gốc</span>'
+    else:
+        src_badge = '<span class="rag-badge rag-badge-dim">Vector Index</span>'
 
     chunks = int(row.get("chunk_count") or 0)
     pages = html.escape(_fmt_pages(row.get("page_min"), row.get("page_max")))

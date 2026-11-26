@@ -3,11 +3,12 @@
 Module thuần (chỉ stdlib), không import Streamlit/LangChain để unit test chạy
 được trong môi trường tối giản. doc_id khớp đúng ``manifest.json`` đi kèm
 ``data/faiss_index_huggingface`` (44 tài liệu, 15.510 chunks); 44/44 tài liệu
-đều có link Google Drive trỏ tới bản tài liệu trong thư mục ``ChatboxRAG``.
+đều có link PDF trực tuyến (39 bản trên Google Drive ``ChatboxRAG`` + 5 chương
+giáo trình CS188/UDL trỏ tới PDF học thuật gốc).
 Tiêu đề hiển thị đã làm sạch từ tiêu đề thô trong chỉ mục.
 """
 
-# 44/44 link Google Drive tương ứng từng doc_id trong CATALOG.
+# 44/44 link PDF tương ứng từng doc_id trong CATALOG (giữ tên biến DRIVE_LINKS để tương thích).
 DRIVE_LINKS = {
     "elc3008_ch01": "https://drive.google.com/file/d/1CVTF2bgazNNNClFcxsQ-q3Ynq7sV_8K7/view",
     "elc3008_ch02": "https://drive.google.com/file/d/1LrKzoc3u8i8e9Q7UEv7gNomM29QlyFVL/view",
@@ -15,11 +16,11 @@ DRIVE_LINKS = {
     "elc3008_ch04": "https://drive.google.com/file/d/1nXlQE2-0vltSq6_skfdtNwPY-kVm4Bwp/view",
     "elc3008_ch05": "https://drive.google.com/file/d/1R1yb3tx_ehUbXP_H6IFyeVCWj4PDBf13/view",
     "elc3008_ch06": "https://drive.google.com/file/d/1SpmUR49gUNk9p_Kd126oIk3bdFrSzmy2/view",
-    "cs188_ch01_search": "https://drive.google.com/file/d/1GlZCchn7FYAdqI7t0dgP1SEm3h30NoOJ/view",
-    "cs188_ch02_csps": "https://drive.google.com/file/d/1tcnUk-VTUCybBRoo2kVizoBOMZ9I4r4t/view",
-    "cs188_ch03_games": "https://drive.google.com/file/d/1MQKM3silMKER0Hl14S0Zc2GEk1RY_-4D/view",
-    "udl_ch15_gans": "https://drive.google.com/file/d/10zOfwOLlxt34Ir_EuJSYkAiyCqKAW9B8/view",
-    "udl_ch17_vaes": "https://drive.google.com/file/d/1Q0XeFQPZ6q07qlAPevYNQyCaA9LmV3R6/view",
+    "cs188_ch01_search": "https://inst.eecs.berkeley.edu/~cs188/textbook/textbook_full.pdf#page=2",
+    "cs188_ch02_csps": "https://inst.eecs.berkeley.edu/~cs188/textbook/textbook_full.pdf#page=24",
+    "cs188_ch03_games": "https://inst.eecs.berkeley.edu/~cs188/textbook/textbook_full.pdf#page=44",
+    "udl_ch15_gans": "https://github.com/udlbook/udlbook/releases/download/v5.0.3/UnderstandingDeepLearning_02_09_26_C.pdf#page=289",
+    "udl_ch17_vaes": "https://github.com/udlbook/udlbook/releases/download/v5.0.3/UnderstandingDeepLearning_02_09_26_C.pdf#page=340",
     "build_a_large_language_model_from_scratc": "https://drive.google.com/file/d/1kxupLqBLMsT2_CzKdeyyeBkM62UDA_3e/view",
     "hands_on_large_language_models_language_": "https://drive.google.com/file/d/13wzspmK-0dL7fBvhU5fijc_DnwzolEv7/view",
     "gt_tri_tue_nhan_tao": "https://drive.google.com/file/d/1IDRgF-EEtn9r2fbIGU6y0ihLwVGBHAg1/view",

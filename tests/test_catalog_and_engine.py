@@ -64,9 +64,30 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertEqual(len(DRIVE_LINKS), 44)
         self.assertEqual(set(DRIVE_LINKS), set(CATALOG))
         self.assertEqual(len(set(DRIVE_LINKS.values())), 44)
-        for url in DRIVE_LINKS.values():
-            self.assertTrue(url.startswith("https://drive.google.com/file/d/"))
-            self.assertTrue(url.endswith("/view"))
+        legacy_jsonl_ids = (
+            "1GlZCchn7FYAdqI7t0dgP1SEm3h30NoOJ",
+            "1tcnUk-VTUCybBRoo2kVizoBOMZ9I4r4t",
+            "1MQKM3silMKER0Hl14S0Zc2GEk1RY_-4D",
+            "10zOfwOLlxt34Ir_EuJSYkAiyCqKAW9B8",
+            "1Q0XeFQPZ6q07qlAPevYNQyCaA9LmV3R6",
+        )
+        direct_pdf_docs = {
+            "cs188_ch01_search",
+            "cs188_ch02_csps",
+            "cs188_ch03_games",
+            "udl_ch15_gans",
+            "udl_ch17_vaes",
+        }
+        for doc_id, url in DRIVE_LINKS.items():
+            self.assertTrue(url.startswith("https://"))
+            self.assertNotIn(".json", url.lower())
+            for legacy_id in legacy_jsonl_ids:
+                self.assertNotIn(legacy_id, url)
+            if doc_id in direct_pdf_docs:
+                self.assertIn(".pdf#page=", url)
+            else:
+                self.assertTrue(url.startswith("https://drive.google.com/file/d/"))
+                self.assertTrue(url.endswith("/view"))
         for meta in CATALOG.values():
             self.assertIn(meta["category"], CATEGORY_ORDER)
             self.assertTrue(meta["sample_question"])

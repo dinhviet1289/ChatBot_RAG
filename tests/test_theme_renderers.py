@@ -205,6 +205,11 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn(">VI<", card_vi)
         self.assertIn("Vector Index", card_vi)
 
+        ext_row = dict(rows[0], url="https://inst.eecs.berkeley.edu/~cs188/textbook/textbook_full.pdf#page=2")
+        card_ext = render_doc_card_html(ext_row, max_chunks=42, total_chunks=64)
+        self.assertIn("PDF Gốc", card_ext)
+        self.assertNotIn("PDF Drive", card_ext)
+
     def test_render_citation_box_shows_rank_badge_and_rerank_shift(self):
         sources = [
             {

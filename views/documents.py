@@ -106,8 +106,12 @@ def render_documents_view(bundle):
                 if r["url"]:
                     b1, b2 = st.columns(2)
                     with b1:
-                        st.link_button(":material/open_in_new: Mở Drive", r["url"],
-                                       width="stretch")
+                        btn_label = (
+                            ":material/open_in_new: Mở Drive"
+                            if "drive.google.com" in r["url"]
+                            else ":material/open_in_new: Mở PDF"
+                        )
+                        st.link_button(btn_label, r["url"], width="stretch")
                     with b2:
                         if st.button(":material/chat: Hỏi tài liệu",
                                      key=f"ask_{r['doc_id']}", width="stretch"):
