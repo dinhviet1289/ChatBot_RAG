@@ -289,6 +289,24 @@ def summarize_docstore(docstore_dict):
     return rows
 
 
+def refresh_doc_summary(rows):
+    """Làm mới metadata hiển thị từ CATALOG/DRIVE_LINKS hiện hành mà không mutate bundle cache."""
+    refreshed = []
+    for r in rows or []:
+        doc_id = r.get("doc_id") or "unknown"
+        known = CATALOG.get(doc_id)
+        item = dict(r)
+        item["title"] = known["title"] if known else (r.get("title") or doc_id)
+        item["category"] = known["category"] if known else (r.get("category") or FALLBACK_CATEGORY)
+        item["lang"] = doc_lang(doc_id)
+        item["url"] = known["url"] if known else DRIVE_LINKS.get(doc_id)
+        item["sample_question"] = known["sample_question"] if known else r.get("sample_question")
+        refreshed.append(item)
+    order = {category: i for i, category in enumerate(CATEGORY_ORDER)}
+    refreshed.sort(key=lambda x: (order.get(x["category"], len(CATEGORY_ORDER)), x["title"], x["doc_id"]))
+    return refreshed
+
+
 def should_show_sources(answer):
     """False khi câu trả lời rỗng/chỉ khoảng trắng hoặc là lời từ chối thuần.
 

@@ -5,6 +5,7 @@ from ui.catalog import (
     CATEGORY_ORDER,
     DRIVE_LINKS,
     doc_lang,
+    refresh_doc_summary,
     serialize_sources,
     should_show_sources,
     sources_from_inspection,
@@ -116,6 +117,41 @@ class TestCatalogAndEngine(unittest.TestCase):
         self.assertEqual((by_id["elc3008_ch01"]["page_min"], by_id["elc3008_ch01"]["page_max"]), (2, 9))
         self.assertEqual(by_id["mystery_doc"]["category"], "Tài liệu khác")
         self.assertIsNone(by_id["mystery_doc"]["page_min"])
+
+    def test_refresh_doc_summary_overlays_latest_catalog_links_without_mutating_cached_rows(self):
+        stale_cs188 = {
+            "doc_id": "cs188_ch01_search",
+            "title": "Old title",
+            "category": "Old cat",
+            "lang": "VI",
+            "url": "https://drive.google.com/file/d/1GlZCchn7FYAdqI7t0dgP1SEm3h30NoOJ/view",
+            "sample_question": "Old q",
+            "chunk_count": 42,
+            "page_min": 2,
+            "page_max": 23,
+        }
+        stale_udl = {
+            "doc_id": "udl_ch15_gans",
+            "title": "Old UDL",
+            "category": "Old cat",
+            "lang": "VI",
+            "url": "https://drive.google.com/file/d/10zOfwOLlxt34Ir_EuJSYkAiyCqKAW9B8/view",
+            "sample_question": "Old q",
+            "chunk_count": 56,
+            "page_min": 289,
+            "page_max": 316,
+        }
+        cached = [stale_cs188, stale_udl]
+        refreshed = refresh_doc_summary(cached)
+        by_id = {r["doc_id"]: r for r in refreshed}
+        self.assertEqual(by_id["cs188_ch01_search"]["url"], DRIVE_LINKS["cs188_ch01_search"])
+        self.assertEqual(by_id["udl_ch15_gans"]["url"], DRIVE_LINKS["udl_ch15_gans"])
+        self.assertEqual(by_id["cs188_ch01_search"]["lang"], "EN")
+        self.assertEqual(by_id["cs188_ch01_search"]["chunk_count"], 42)
+        self.assertEqual(
+            stale_cs188["url"],
+            "https://drive.google.com/file/d/1GlZCchn7FYAdqI7t0dgP1SEm3h30NoOJ/view",
+        )
 
     def test_doc_lang_classifies_all_44_catalog_entries(self):
         self.assertEqual(doc_lang("aib_ch01"), "EN")

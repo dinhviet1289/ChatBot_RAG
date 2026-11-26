@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from ui.catalog import CATEGORY_ORDER, summarize_docstore
+from ui.catalog import CATEGORY_ORDER, refresh_doc_summary, summarize_docstore
 from ui.state import ask_about_document
 from ui.theme import (
     render_corpus_overview_html,
@@ -20,7 +20,8 @@ def _reset_doc_filters():
 
 def render_documents_view(bundle):
     state = st.session_state
-    rows = bundle.get("doc_summary") or summarize_docstore(bundle["db"].docstore._dict)
+    raw_rows = bundle.get("doc_summary") or summarize_docstore(bundle["db"].docstore._dict)
+    rows = refresh_doc_summary(raw_rows)
     total_chunks = sum(r["chunk_count"] for r in rows)
     max_chunks = max((r["chunk_count"] for r in rows), default=0)
 
