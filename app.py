@@ -8,6 +8,7 @@ from ui.state import (
     create_new_conversation,
     delete_conversation,
     init_state,
+    toggle_theme_mode,
 )
 from ui.theme import inject_global_css, render_system_card_html
 from views.conversation import render_conversation_view
@@ -40,10 +41,14 @@ def _on_clear_all():
     clear_all_conversations(st.session_state)
 
 
+def _on_toggle_theme():
+    toggle_theme_mode(st.session_state)
+
+
 st.set_page_config(page_title="ELC3008 | Trợ lý học tập AI",
                    page_icon=":material/school:", layout="wide")
-inject_global_css()
 init_state(st.session_state)
+inject_global_css(st.session_state.get("theme_mode", "light"))
 
 
 @st.cache_resource
@@ -90,6 +95,13 @@ with st.sidebar:
         f'<div class="rag-brand-sub">Trí tuệ nhân tạo trong kinh doanh · ĐH Kinh tế</div>'
         f'</div>',
         unsafe_allow_html=True,
+    )
+    is_dark = state.get("theme_mode") == "dark"
+    st.button(
+        ":material/light_mode: Giao diện Sáng" if is_dark else ":material/dark_mode: Giao diện Tối",
+        key="theme_toggle",
+        width="stretch",
+        on_click=_on_toggle_theme,
     )
     st.button(":material/add: Cuộc hội thoại mới", key="new_conv",
               width="stretch", type="primary", on_click=_on_new_conv)

@@ -11,6 +11,7 @@ from ui.state import (
     last_user_question,
     open_in_inspector,
     prepare_regenerate,
+    toggle_theme_mode,
 )
 
 
@@ -138,6 +139,15 @@ class TestChatState(unittest.TestCase):
         self.assertEqual(state["active_page"], "inspector")
         self.assertEqual(state["dbg_q"], "Thuật toán A*")
         self.assertTrue(state["dbg_auto"])
+
+    def test_init_state_defaults_light_theme_and_toggle_switches_cleanly(self):
+        state = {}
+        init_state(state)
+        self.assertEqual(state["theme_mode"], "light")
+        self.assertEqual(toggle_theme_mode(state), "dark")
+        self.assertEqual(state["theme_mode"], "dark")
+        self.assertEqual(toggle_theme_mode(state), "light")
+        self.assertEqual(state["theme_mode"], "light")
 
 
 if __name__ == "__main__":

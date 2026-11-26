@@ -31,6 +31,25 @@ PALETTE = {
     "info": "#0F766E",
 }
 
+DARK_PALETTE = {
+    "canvas": "#0B1120",
+    "sidebar": "#0F172A",
+    "card": "#162033",
+    "primary": "#4F75FF",
+    "primary_end": "#3B5BDB",
+    "primary_2": "#6366F1",
+    "active_pill": "#1E293B",
+    "callout": "#111A2C",
+    "ink": "#F1F5F9",
+    "muted": "#94A3B8",
+    "border": "rgba(148,163,184,0.18)",
+    "link": "#7DA2FF",
+    "success": "#34D399",
+    "warning": "#FBBF24",
+    "danger": "#F87171",
+    "info": "#2DD4BF",
+}
+
 _CATEGORY_COLORS = (
     "#2447C7",
     "#0F766E",
@@ -1411,6 +1430,16 @@ a:hover { color:var(--primary-end); }
   font-size:0.78rem; padding:0.2rem 0.5rem; min-height:1.85rem; }
 [data-testid="stSidebar"] [class*="st-key-clear_all"] button:hover {
   color:var(--danger); background:rgba(185,28,28,0.06); border-color:transparent; }
+[data-testid="stSidebar"] [class*="st-key-theme_toggle"] [data-testid="stBaseButton-secondary"] {
+  background:#FFFFFF; border:1px solid var(--border); color:var(--text);
+  border-radius:999px; font-size:0.8rem; font-weight:600;
+  padding:0.28rem 0.75rem; min-height:1.95rem;
+  justify-content:center; text-align:center;
+  box-shadow:0 1px 2px rgba(15,23,42,0.04); }
+[data-testid="stSidebar"] [class*="st-key-theme_toggle"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
+  color:var(--primary); }
+[data-testid="stSidebar"] [class*="st-key-theme_toggle"] [data-testid="stBaseButton-secondary"]:hover {
+  border-color:rgba(36,71,199,0.38); background:var(--surface-2); color:var(--link); }
 
 [data-testid="stSidebar"] [class*="st-key-new_conv"] {
   margin-top:8px !important; }
@@ -2060,6 +2089,200 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
 }
 """)
 
+_DARK_CSS_TEMPLATE = Template("""
+:root { color-scheme: dark;
+  --bg:$canvas; --surface:$card; --surface-2:$active_pill;
+  --border:$border; --text:$ink; --muted:$muted;
+  --primary:$primary; --primary-2:$primary_2; --primary-end:$primary_end;
+  --success:$success; --warn:$warning; --danger:$danger; --info:$info;
+  --canvas:$canvas; --sidebar:$sidebar; --card:$card; --ink:$ink;
+  --link:$link; --active-pill:$active_pill; --callout:$callout; --warning:$warning; }
+html, body, [data-testid="stApp"], [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+  background:
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(79,117,255,0.13), transparent 72%),
+    var(--bg) !important;
+  color:var(--text) !important; }
+[data-testid="stHeader"] {
+  background:linear-gradient(180deg, rgba(11,17,32,0.92) 55%, transparent) !important; }
+[data-testid="stHeader"] button,
+[data-testid="stSidebarCollapseButton"] button { color:var(--text) !important; }
+[data-testid="stBottom"], [data-testid="stBottom"] > div,
+[data-testid="stBottomBlockContainer"] {
+  background:transparent !important; }
+* { scrollbar-color:rgba(148,163,184,0.28) var(--sidebar); }
+::-webkit-scrollbar-thumb { background:rgba(148,163,184,0.28); border-color:var(--sidebar); }
+[data-testid="stSidebar"] { background:var(--sidebar) !important;
+  border-right:1px solid var(--border) !important; color:var(--text) !important; }
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {
+  background:rgba(255,255,255,0.06) !important; color:var(--text) !important; }
+[data-testid="stSidebar"] [class*="st-key-nav_"] [data-testid="stBaseButton-primary"] {
+  background:var(--surface) !important; border-color:rgba(125,162,255,0.34) !important;
+  box-shadow:inset 3px 0 0 var(--primary), 0 1px 4px rgba(0,0,0,0.35) !important;
+  color:var(--text) !important; }
+[data-testid="stSidebar"] [class*="st-key-nav_"] [data-testid="stBaseButton-primary"] * {
+  color:var(--text) !important; }
+[data-testid="stSidebar"] [class*="st-key-conv_"] [data-testid="stBaseButton-primary"] {
+  background:rgba(79,117,255,0.18) !important; border-color:rgba(125,162,255,0.32) !important;
+  color:var(--link) !important; }
+[data-testid="stSidebar"] [class*="st-key-conv_"] [data-testid="stBaseButton-primary"] * {
+  color:var(--link) !important; }
+[data-testid="stSidebar"] [class*="st-key-theme_toggle"] [data-testid="stBaseButton-secondary"] {
+  background:var(--surface) !important; border-color:var(--border) !important;
+  color:var(--text) !important; box-shadow:none !important; }
+[data-testid="stSidebar"] [class*="st-key-theme_toggle"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
+  color:#FBBF24 !important; }
+[data-testid="stSidebar"] [class*="st-key-theme_toggle"] [data-testid="stBaseButton-secondary"]:hover {
+  background:var(--surface-2) !important; border-color:rgba(125,162,255,0.38) !important;
+  color:var(--link) !important; }
+.rag-brand, .rag-sys-card, .rag-page-header, .rag-lab-stat, .rag-rerank-card,
+.rag-stage1-details, .rag-stage1-box, .rag-lab-placeholder, .rag-kpi-card,
+.rag-dist-box, .rag-quiz-score,
+[data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stExpander"] > details {
+  background:var(--surface) !important; border-color:var(--border) !important;
+  box-shadow:0 2px 10px rgba(0,0,0,0.28) !important; color:var(--text) !important; }
+[data-testid="stExpander"] > details > summary { color:var(--text) !important; }
+[data-testid="stMarkdownContainer"], [data-testid="stWidgetLabel"] p,
+[role="radiogroup"] label, [role="radiogroup"] label p {
+  color:var(--text) !important; }
+[data-testid="stCaptionContainer"], .rag-page-sub, .rag-brand-sub, .rag-sys-sub,
+.rag-lab-s, .rag-kpi-sub, .rag-fc-hint, .rag-fc-opt, .rag-quiz-src,
+.rag-quiz-ans, .rag-quiz-score-note, .rag-cite-page, .rag-rank-flow {
+  color:var(--muted) !important; }
+[data-testid="stChatMessage"] {
+  background:var(--surface) !important; border-color:var(--border) !important;
+  box-shadow:0 2px 12px rgba(0,0,0,0.3) !important; }
+[data-testid="stChatMessage"] th {
+  background:#1E293B !important; color:var(--text) !important; border-color:var(--border) !important; }
+[data-testid="stChatMessage"] td {
+  color:var(--text) !important; border-color:var(--border) !important; }
+[data-testid="stChatMessage"] code {
+  background:#0F172A !important; color:#E2E8F0 !important; border-color:var(--border) !important; }
+[data-testid="stChatMessage"] pre {
+  background:#0F172A !important; border-color:var(--border) !important; }
+[data-testid="stChatMessage"]:has([aria-label="Chat message from user"]),
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
+  background:linear-gradient(180deg, #1E2B4B 0%, #17223B 100%) !important;
+  border-color:rgba(125,162,255,0.34) !important; }
+[data-testid="stChatMessageAvatarUser"],
+[data-testid="stChatMessage"]:has([aria-label="Chat message from user"]) [data-testid^="stChatMessageAvatar"] {
+  background:linear-gradient(135deg, #27375F, #1E2B4B) !important;
+  color:#C7D2FE !important; border-color:rgba(125,162,255,0.4) !important; }
+[data-testid="stChatMessageAvatarUser"] *,
+[data-testid="stChatMessage"]:has([aria-label="Chat message from user"]) [data-testid^="stChatMessageAvatar"] * {
+  color:#C7D2FE !important; }
+.katex { color:var(--text) !important; }
+.rag-hero {
+  background:radial-gradient(circle at 1px 1px, rgba(125,162,255,0.14) 1px, transparent 0),
+    linear-gradient(180deg, #162033 0%, #0F172A 100%) !important;
+  background-size:20px 20px, 100% 100% !important;
+  border-color:var(--border) !important; box-shadow:0 4px 20px rgba(0,0,0,0.35) !important; }
+.rag-hero-title {
+  background:linear-gradient(135deg, #F8FAFC 18%, #93B4FF 62%, #2DD4BF 100%) !important;
+  -webkit-background-clip:text !important; background-clip:text !important;
+  -webkit-text-fill-color:transparent !important; }
+.rag-hero-badge {
+  background:rgba(79,117,255,0.16) !important; border-color:rgba(125,162,255,0.34) !important; }
+.rag-hero-pill, .rag-flow-step, .rag-hdr-chip, .rag-tel-chip {
+  background:#0F172A !important; color:var(--text) !important; border-color:var(--border) !important; }
+.rag-hdr-chip.is-primary, .rag-tel-model {
+  background:rgba(79,117,255,0.18) !important; color:var(--link) !important;
+  border-color:rgba(125,162,255,0.32) !important; }
+.rag-hdr-chip.is-success {
+  background:rgba(52,211,153,0.14) !important; color:var(--success) !important;
+  border-color:rgba(52,211,153,0.3) !important; }
+.rag-hdr-chip.is-warn, .rag-tel-warn {
+  background:rgba(251,191,36,0.14) !important; color:var(--warn) !important;
+  border-color:rgba(251,191,36,0.3) !important; }
+.rag-hdr-chip.is-info {
+  background:rgba(45,212,191,0.14) !important; color:var(--info) !important;
+  border-color:rgba(45,212,191,0.3) !important; }
+[class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] {
+  background:var(--surface) !important; border-color:var(--border) !important; }
+[class*="st-key-sug_"] [data-testid="stBaseButton-secondary"]:hover {
+  background:#1B2740 !important; }
+[class*="st-key-sug_0"] [data-testid="stBaseButton-secondary"] { border-top-color:#60A5FA !important; }
+[class*="st-key-sug_0"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] { color:#60A5FA !important; }
+[class*="st-key-sug_1"] [data-testid="stBaseButton-secondary"] { border-top-color:#2DD4BF !important; }
+[class*="st-key-sug_1"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] { color:#2DD4BF !important; }
+[class*="st-key-sug_2"] [data-testid="stBaseButton-secondary"] { border-top-color:#A78BFA !important; }
+[class*="st-key-sug_2"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] { color:#A78BFA !important; }
+[class*="st-key-sug_3"] [data-testid="stBaseButton-secondary"] { border-top-color:#FBBF24 !important; }
+[class*="st-key-sug_3"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] { color:#FBBF24 !important; }
+[data-testid="stBaseButton-secondary"], a[data-testid="stBaseLinkButton-secondary"] {
+  background:var(--surface) !important; color:var(--text) !important;
+  border-color:var(--border) !important; }
+[data-testid="stBaseButton-secondary"]:hover, a[data-testid="stBaseLinkButton-secondary"]:hover {
+  background:var(--surface-2) !important; border-color:rgba(125,162,255,0.4) !important;
+  color:var(--link) !important; }
+[class*="st-key-fup_"] [data-testid="stBaseButton-secondary"]:hover {
+  background:rgba(45,212,191,0.12) !important; border-color:rgba(45,212,191,0.38) !important;
+  color:var(--info) !important; }
+[data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea,
+[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+  background:#0F172A !important; color:var(--text) !important;
+  border-color:var(--border) !important; }
+[data-testid="stSelectbox"] [data-baseweb="select"] svg { fill:var(--muted) !important; }
+[data-baseweb="popover"], [data-baseweb="menu"], ul[role="listbox"] {
+  background:#162033 !important; color:var(--text) !important;
+  border:1px solid var(--border) !important; }
+li[role="option"] { background:#162033 !important; color:var(--text) !important; }
+li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+  background:#1E293B !important; color:var(--link) !important; }
+[data-testid="stChatInput"] {
+  background:#162033 !important; border-color:rgba(148,163,184,0.28) !important;
+  box-shadow:0 6px 24px rgba(0,0,0,0.4) !important; }
+[data-testid="stChatInput"] textarea, [data-testid="stChatInputTextArea"] {
+  color:var(--text) !important; caret-color:var(--text) !important; }
+[data-testid="stChatInput"] textarea::placeholder { color:var(--muted) !important; }
+[data-testid="stButtonGroup"] button {
+  background:#0F172A !important; color:var(--muted) !important; border-color:var(--border) !important; }
+[data-testid="stButtonGroup"] button[aria-checked="true"],
+[data-testid="stButtonGroup"] button[aria-pressed="true"] {
+  background:rgba(79,117,255,0.22) !important; color:var(--link) !important;
+  border-color:rgba(125,162,255,0.45) !important; }
+[data-testid="stAlert"] > div {
+  background:var(--surface) !important; color:var(--text) !important; border-color:var(--border) !important; }
+.rag-citation {
+  background:var(--callout) !important; border-color:var(--border) !important; }
+.rag-citation-head { color:var(--link) !important; }
+.rag-cite-id { background:#1E293B !important; color:var(--muted) !important; border-color:var(--border) !important; }
+.rag-cite-score { background:rgba(45,212,191,0.14) !important; color:var(--info) !important;
+  border-color:rgba(45,212,191,0.3) !important; }
+.rag-cite-meter { background:rgba(148,163,184,0.22) !important; }
+.rag-cite-snippet, .rag-rerank-snip { color:#CBD5E1 !important; }
+.rag-source-pill, a.rag-source-pill {
+  background:rgba(45,212,191,0.12) !important; color:var(--text) !important;
+  border-color:rgba(45,212,191,0.3) !important; }
+a.rag-source-pill:hover { background:rgba(45,212,191,0.22) !important; color:#FFFFFF !important; }
+.rag-source-pill.is-more { background:#0F172A !important; color:var(--muted) !important; }
+.rag-stepper { background:#0F172A !important; border-color:var(--border) !important; }
+.rag-step.is-done { background:rgba(52,211,153,0.14) !important; border-color:rgba(52,211,153,0.3) !important; }
+.rag-step.is-active { background:rgba(79,117,255,0.18) !important; border-color:rgba(125,162,255,0.36) !important; }
+.rag-step.is-active.is-synth { background:rgba(45,212,191,0.16) !important; border-color:rgba(45,212,191,0.34) !important; }
+.rag-step.is-wait { background:#162033 !important; color:var(--muted) !important; }
+mark.rag-hl { background:rgba(250,204,21,0.26) !important; color:#FEF08A !important;
+  box-shadow:0 0 0 1px rgba(250,204,21,0.35) !important; }
+.rag-stage1-table td { color:var(--text) !important; border-bottom-color:rgba(148,163,184,0.14) !important; }
+.rag-s1-kept { background:rgba(45,212,191,0.1) !important; }
+.rag-latency-bar, .rag-dist-bar, .rag-doc-bar { background:#1E293B !important; }
+.rag-badge-en { color:#38BDF8 !important; background:rgba(56,189,248,0.14) !important; border-color:rgba(56,189,248,0.3) !important; }
+.rag-badge-vi { color:#C084FC !important; background:rgba(192,132,252,0.14) !important; border-color:rgba(192,132,252,0.3) !important; }
+.rag-badge-ok { color:var(--success) !important; background:rgba(52,211,153,0.14) !important; border-color:rgba(52,211,153,0.3) !important; }
+.rag-badge-dim { color:var(--muted) !important; background:rgba(148,163,184,0.12) !important; }
+.rag-doc-card .rag-badge-cat { filter:brightness(1.38); }
+.rag-quiz-status.is-ok { background:rgba(52,211,153,0.15) !important; border-color:rgba(52,211,153,0.32) !important; }
+.rag-quiz-status.is-wrong { background:rgba(248,113,113,0.15) !important; border-color:rgba(248,113,113,0.32) !important; }
+.rag-quiz-fb { color:var(--text) !important; }
+.rag-quiz-fb.is-ok { background:rgba(52,211,153,0.1) !important; }
+.rag-quiz-fb.is-wrong { background:rgba(248,113,113,0.1) !important; }
+.rag-fc-front { background:var(--surface) !important; border-color:var(--border) !important;
+  border-top:3px solid var(--primary) !important; }
+.rag-fc-back { background:linear-gradient(180deg, #132833 0%, #162033 100%) !important;
+  border-color:rgba(45,212,191,0.36) !important; border-top:3px solid var(--info) !important; }
+.rag-fc-exp { color:#E2E8F0 !important; background:rgba(45,212,191,0.1) !important; }
+""")
+
 _FONT_LINKS_HTML = (
     '<link rel="preconnect" href="https://fonts.googleapis.com">'
     '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
@@ -2070,14 +2293,18 @@ _FONT_LINKS_HTML = (
 )
 
 
-def _global_css():
-    return "\n".join(
-        line for line in _CSS_TEMPLATE.substitute(**PALETTE).splitlines() if line.strip()
-    )
+def _global_css(theme_mode="light"):
+    raw = _CSS_TEMPLATE.substitute(**PALETTE)
+    if str(theme_mode or "light").strip().lower() == "dark":
+        raw = raw + "\n" + _DARK_CSS_TEMPLATE.substitute(**DARK_PALETTE)
+    return "\n".join(line for line in raw.splitlines() if line.strip())
 
 
-def inject_global_css():
+def inject_global_css(theme_mode=None):
     import streamlit as st
 
+    if theme_mode is None:
+        sess = getattr(st, "session_state", None)
+        theme_mode = sess.get("theme_mode", "light") if hasattr(sess, "get") else "light"
     st.markdown(_FONT_LINKS_HTML, unsafe_allow_html=True)
-    st.markdown(f"<style>\n{_global_css()}\n</style>", unsafe_allow_html=True)
+    st.markdown(f"<style>\n{_global_css(theme_mode)}\n</style>", unsafe_allow_html=True)

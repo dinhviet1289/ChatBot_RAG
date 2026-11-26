@@ -1,5 +1,6 @@
 import unittest
 from ui.theme import (
+    DARK_PALETTE,
     PALETTE,
     _global_css,
     clean_snippet,
@@ -618,6 +619,32 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn(".rag-fc-toggle:checked + .rag-fc-inner", css)
         self.assertIn("rotateY(180deg)", css)
         self.assertNotIn("\n\n", css)
+
+    def test_dark_theme_css_and_wcag_aa_contrast(self):
+        light_css = _global_css("light")
+        dark_css = _global_css("dark")
+        self.assertIn("color-scheme: light", light_css)
+        self.assertNotIn("color-scheme: dark", light_css)
+        self.assertIn("color-scheme: dark", dark_css)
+        self.assertIn(DARK_PALETTE["canvas"], dark_css)
+        self.assertIn(DARK_PALETTE["card"], dark_css)
+        self.assertIn(".rag-citation {", dark_css)
+        self.assertIn("st-key-theme_toggle", dark_css)
+        self.assertNotIn("\n\n", dark_css)
+
+        def rel_lum(hex_c):
+            h = hex_c.lstrip("#")
+            rgb = [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+            lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+            return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+        def contrast(c1, c2):
+            l1, l2 = rel_lum(c1), rel_lum(c2)
+            return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
+
+        for fg in (DARK_PALETTE["ink"], DARK_PALETTE["muted"], DARK_PALETTE["link"], DARK_PALETTE["info"]):
+            for bg in (DARK_PALETTE["card"], DARK_PALETTE["sidebar"]):
+                self.assertGreaterEqual(contrast(fg, bg), 4.5, f"Low contrast for {fg} on {bg}")
 
 
 if __name__ == "__main__":

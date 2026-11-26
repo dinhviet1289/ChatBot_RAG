@@ -33,6 +33,14 @@ def init_state(state):
         state["active_conv_id"] = ids[0]
     state.setdefault("active_page", "conversation")
     state.setdefault("pending_prompt", None)
+    state.setdefault("theme_mode", "light")
+
+
+def toggle_theme_mode(state):
+    """Toggle UI theme between 'light' and 'dark' in session state."""
+    current = str(state.get("theme_mode") or "light").strip().lower()
+    state["theme_mode"] = "dark" if current != "dark" else "light"
+    return state["theme_mode"]
 
 
 def get_active_conversation(state):
