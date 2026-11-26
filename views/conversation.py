@@ -163,7 +163,7 @@ def _render_empty_state(state, bundle=None):
     cols = st.columns(2)
     for i, card in enumerate(SUGGESTED_CARDS):
         with cols[i % 2]:
-            if st.button(f":material/{card['icon']}: **{card['title']}** · {card['subtitle']}\n\n{card['prompt']} →",
+            if st.button(f":material/{card['icon']}: **{card['title']}** · {card['subtitle']}  \n{card['prompt']} →",
                          key=f"sug_{i}", width="stretch"):
                 # Không rerun: pending_prompt được tiêu ngay trong cùng lần chạy.
                 state["pending_prompt"] = card["prompt"]

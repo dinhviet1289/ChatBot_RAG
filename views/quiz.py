@@ -7,6 +7,7 @@ import uuid
 import streamlit as st
 
 from rag_engine_web import (
+    build_quiz_chain,
     describe_llm_error,
     invoke_text,
     model_chain,
@@ -131,7 +132,11 @@ def render_quiz_view(bundle):
             if "groq_keys" in (bundle or {})
             else (cfg.get("groq_keys") or [])
         )
-        make_quiz = (bundle or {}).get("make_quiz_chain") or (bundle or {}).get("make_answer_chain")
+        make_quiz = (
+            build_quiz_chain
+            if db is not None
+            else ((bundle or {}).get("make_quiz_chain") or (bundle or {}).get("make_answer_chain") or build_quiz_chain)
+        )
         pairs = rotation_pairs(keys, model_chain(cfg.get("llm_model") or ""))
         served = {}
         topic_hint = (topic_q or "").strip() or sel_cat
@@ -141,6 +146,8 @@ def render_quiz_view(bundle):
             "context": format_quiz_context(sampled),
         }
         questions = None
+        best_questions = []
+        best_served = {}
         with st.spinner("Đang tổng hợp bộ câu hỏi bám sát giáo trình..."):
             try:
                 attempt_pairs = list(pairs)
@@ -157,8 +164,7 @@ def render_quiz_view(bundle):
                         ),
                     )
                     try:
-                        questions = parse_quiz_response(raw, sampled, expected_count=int(num_q))
-                        break
+                        cand = parse_quiz_response(raw, sampled, expected_count=int(num_q))
                     except QuizParseError as parse_exc:
                         logger.warning(
                             "Quiz JSON parse thất bại (attempt %d, model=%s): %s",
@@ -166,11 +172,25 @@ def render_quiz_view(bundle):
                             served.get("model"),
                             parse_exc,
                         )
-                        if attempt_idx == 1:
+                        if attempt_idx == 1 and not best_questions:
                             raise
                         attempt_pairs = [
                             (m, k) for m, k in attempt_pairs if m != served.get("model")
                         ] or attempt_pairs[1:]
+                        continue
+
+                    if len(cand) > len(best_questions):
+                        best_questions = cand
+                        best_served = dict(served)
+                    if len(best_questions) >= int(num_q) or attempt_idx == 1:
+                        break
+                    attempt_pairs = [
+                        (m, k) for m, k in attempt_pairs if m != served.get("model")
+                    ] or attempt_pairs[1:]
+
+                questions = best_questions
+                if best_served:
+                    served = best_served
             except QuizParseError:
                 st.error("Mô hình trả về định dạng JSON chưa chuẩn sau khi thử lại. Bấm **Tạo bộ câu hỏi mới** hoặc chọn chủ đề khác.")
                 return

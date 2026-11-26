@@ -660,7 +660,7 @@ def render_system_card_html(cfg):
         f'</div>'
         f'<div class="rag-sys-sub rag-mono">{rerank_sub}</div>'
         f'<div class="rag-sys-grid">'
-        f'<div class="rag-sys-row"><span>Stage-1</span><span class="rag-mono">BM25 0.3 + FAISS 0.7 · N={retrieve_n}</span></div>'
+        f'<div class="rag-sys-row"><span>Stage-1</span><span class="rag-mono">0.3·BM25 + 0.7·FAISS · N={retrieve_n}</span></div>'
         f'<div class="rag-sys-row"><span>Stage-2</span><span class="rag-mono">Top-{top_k}</span></div>'
         f'<div class="rag-sys-row"><span>LLM</span><span class="rag-mono">Groq</span></div>'
         f'<div class="rag-sys-row"><span>Embed</span><span class="rag-mono">{embed_dim}d · {embed_short}</span></div>'
@@ -1137,7 +1137,7 @@ h1, h2, h3, .rag-brand-title, .rag-page-title, .rag-hero-title,
 [data-testid="stMainBlockContainer"] {
   max-width:1240px; margin:0 auto; padding:2.1rem var(--s-8) var(--s-8); }
 [data-testid="stAppViewContainer"]:has([data-testid="stChatInput"]) [data-testid="stMainBlockContainer"] {
-  max-width:860px; }
+  max-width:860px; padding-bottom:6rem; }
 [data-testid="stBottomBlockContainer"] {
   max-width:860px; margin:0 auto; padding-left:var(--s-8); padding-right:var(--s-8); }
 [data-testid="stElementContainer"]:has(style) { margin:0 !important; padding:0 !important; }
@@ -1239,8 +1239,10 @@ a:hover { color:var(--primary-end); }
 [data-testid="stSidebar"] [class*="st-key-clear_all"] button:hover {
   color:var(--danger); background:rgba(185,28,28,0.06); border-color:transparent; }
 
+[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.rag-brand) {
+  margin-bottom:6px !important; }
 .rag-brand { background:#FFFFFF; border:1px solid var(--border); border-radius:12px;
-  padding:9px 11px; box-shadow:0 1px 3px rgba(15,23,42,0.04); margin-bottom:6px; }
+  padding:9px 11px; box-shadow:0 1px 3px rgba(15,23,42,0.04); margin-bottom:2px; }
 .rag-brand-top { display:flex; align-items:center; gap:9px; }
 .rag-brand-logo { width:32px; height:32px; border-radius:9px; flex-shrink:0;
   background:linear-gradient(135deg,var(--primary),var(--primary-2));
@@ -1265,8 +1267,9 @@ a:hover { color:var(--primary-end); }
 .rag-sys-sub { color:var(--muted); font-size:0.73rem; margin:1px 0 6px 15px; }
 .rag-sys-grid { display:flex; flex-direction:column; gap:2px; border-top:1px solid var(--border);
   padding-top:6px; }
-.rag-sys-row { display:flex; justify-content:space-between; gap:8px; font-size:0.75rem;
-  color:var(--muted); }
+.rag-sys-row { display:flex; justify-content:space-between; align-items:baseline;
+  gap:6px; font-size:0.72rem; color:var(--muted); }
+.rag-sys-row > span:first-child { white-space:nowrap; flex-shrink:0; }
 .rag-sys-row .rag-mono { color:var(--text); text-align:right; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; }
 
@@ -1354,17 +1357,20 @@ a:hover { color:var(--primary-end); }
 /* Single-layer suggestion cards on Empty Chat & compact inline actions */
 [class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] {
   background:#FFFFFF; border:1px solid var(--border); border-radius:14px;
-  padding:16px 18px; min-height:106px; text-align:left;
+  padding:16px 18px; min-height:104px; height:auto !important; text-align:left;
   justify-content:flex-start; align-items:flex-start;
-  box-shadow:0 1px 2px rgba(15,23,42,0.04); white-space:normal; line-height:1.45; }
+  box-shadow:0 1px 2px rgba(15,23,42,0.04); white-space:normal !important; line-height:1.5; }
 [class*="st-key-sug_"] [data-testid="stBaseButton-secondary"]:hover {
   background:#FFFFFF; border-color:rgba(36,71,199,0.38); color:var(--text);
   box-shadow:inset 3px 0 0 var(--primary), 0 8px 20px rgba(15,23,42,0.07);
   transform:translate3d(0,-1px,0); }
+[class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] > div,
+[class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] [data-testid="stMarkdownContainer"],
 [class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] [data-testid="stMarkdownContainer"] p {
-  text-align:left; color:var(--muted); font-size:0.82rem; font-weight:400; margin:0; }
-[class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] [data-testid="stMarkdownContainer"] p + p {
-  margin-top:7px; color:var(--text); font-weight:500; font-size:0.9rem; line-height:1.45; }
+  white-space:normal !important; overflow:visible !important;
+  text-overflow:clip !important; max-width:100%; }
+[class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] [data-testid="stMarkdownContainer"] p {
+  text-align:left; color:var(--muted); font-size:0.86rem; font-weight:400; margin:0; line-height:1.55; }
 [class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] [data-testid="stMarkdownContainer"] strong {
   color:var(--text); font-weight:600; font-size:0.95rem; }
 [class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
@@ -1693,9 +1699,16 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
   color:var(--muted); margin:6px 0 4px; }
 [class*="st-key-fup_"] [data-testid="stBaseButton-secondary"] {
   background:#FFFFFF; border:1px solid var(--border); border-radius:12px;
-  padding:0.48rem 0.85rem; min-height:2.25rem; text-align:left; justify-content:flex-start;
-  color:var(--text); font-size:0.86rem; font-weight:500; white-space:normal; line-height:1.4;
+  padding:0.48rem 0.85rem; min-height:2.25rem; height:auto !important;
+  text-align:left; justify-content:flex-start;
+  color:var(--text); font-size:0.86rem; font-weight:500;
+  white-space:normal !important; line-height:1.4;
   box-shadow:0 1px 2px rgba(15,23,42,0.03); }
+[class*="st-key-fup_"] [data-testid="stBaseButton-secondary"] > div,
+[class*="st-key-fup_"] [data-testid="stBaseButton-secondary"] [data-testid="stMarkdownContainer"],
+[class*="st-key-fup_"] [data-testid="stBaseButton-secondary"] [data-testid="stMarkdownContainer"] p {
+  white-space:normal !important; overflow:visible !important;
+  text-overflow:clip !important; text-align:left; margin:0; }
 [class*="st-key-fup_"] [data-testid="stBaseButton-secondary"]:hover {
   background:#F0FDFA; border-color:rgba(15,118,110,0.34); color:var(--info);
   transform:translate3d(2px,0,0); }
@@ -1730,7 +1743,7 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
 @media (max-width: 1120px) {
   .rag-kpi-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   [data-testid="stMainBlockContainer"] { padding:2.5rem var(--s-4) var(--s-6); }
   [data-testid="stBottomBlockContainer"] { padding-left:var(--s-4); padding-right:var(--s-4); }
   .rag-lab-summary, .rag-kpi-grid { grid-template-columns:1fr; }

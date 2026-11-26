@@ -143,7 +143,7 @@ QUIZ_TEMPLATE = r"""
 Bạn là giảng viên môn Trí tuệ nhân tạo (ELC3008).
 
 NHIỆM VỤ:
-Tạo đúng {num_questions} câu hỏi trắc nghiệm khách quan (4 lựa chọn A, B, C, D, chỉ 1 đáp án đúng)
+Tạo ĐỦ CHÍNH XÁC {num_questions} câu hỏi trắc nghiệm khách quan (mảng JSON bắt buộc có đúng {num_questions} phần tử, không thiếu câu nào; mỗi câu 4 lựa chọn A, B, C, D, chỉ 1 đáp án đúng)
 dựa HOÀN TOÀN vào các đoạn NGỮ CẢNH dưới đây.
 
 CHỦ ĐỀ TRỌNG TÂM:
@@ -259,6 +259,20 @@ def invoke_text(make_chain, pairs, inputs, report=None):
             last_error = exc
     if last_error is not None:
         raise last_error
+
+
+def build_quiz_chain(model, key):
+    """Tạo chain sinh đề trắc nghiệm trực tiếp (tách khỏi cache_resource để hot-reload ngay)."""
+    from langchain_core.output_parsers import StrOutputParser
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_groq import ChatGroq
+
+    quiz_prompt_template = ChatPromptTemplate.from_template(QUIZ_TEMPLATE)
+    return (
+        quiz_prompt_template
+        | ChatGroq(model=model, api_key=key, temperature=0.2, max_tokens=4000)
+        | StrOutputParser()
+    )
 
 
 _BM25_STOPWORDS = frozenset({
@@ -402,17 +416,12 @@ def get_rag_bundle():
         reranker = CrossEncoder(RERANK_MODEL, max_length=1024)
 
     prompt_template = ChatPromptTemplate.from_template(TEMPLATE)
-    quiz_prompt_template = ChatPromptTemplate.from_template(QUIZ_TEMPLATE)
 
     def make_answer_chain(model, key):
         return prompt_template | ChatGroq(model=model, api_key=key, temperature=0) | StrOutputParser()
 
     def make_quiz_chain(model, key):
-        return (
-            quiz_prompt_template
-            | ChatGroq(model=model, api_key=key, temperature=0.2, max_tokens=2500)
-            | StrOutputParser()
-        )
+        return build_quiz_chain(model, key)
 
     doc_summary = summarize_docstore(db.docstore._dict)
     config = {

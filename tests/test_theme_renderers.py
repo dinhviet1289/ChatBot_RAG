@@ -522,6 +522,10 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn('[class*="st-key-fup_"]', css)
         self.assertIn(".rag-quiz-score", css)
         self.assertIn('[class*="st-key-conv_"] [data-testid="stBaseButton-primary"]', css)
+        self.assertIn("@media (max-width: 768px)", css)
+        self.assertIn("padding-bottom:6rem;", css)
+        self.assertIn(".rag-sys-row > span:first-child { white-space:nowrap;", css)
+        self.assertIn("text-overflow:clip !important", css)
         self.assertNotIn("\n\n", css)
 
 
