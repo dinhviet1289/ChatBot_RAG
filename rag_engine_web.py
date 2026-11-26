@@ -106,8 +106,8 @@ NHIỆM VỤ:
 Giải đáp câu hỏi của sinh viên dựa trên tài liệu được cung cấp.
 
 QUY TẮC:
-1. Chỉ sử dụng thông tin trong NGỮ CẢNH.
-2. Không tự ý bổ sung kiến thức bên ngoài, không đoán.
+1. KIỂM TRA PHẠM VI MÔN HỌC TRƯỚC TIÊN (ƯU TIÊN CAO NHẤT): Phạm vi môn là Trí tuệ nhân tạo / Học máy / Khoa học dữ liệu. Nếu CÂU HỎI hỏi kiến thức phổ thông ngoài môn (địa lý, thủ đô các nước, lịch sử, thời tiết, thể thao, giải trí...), TUYỆT ĐỐI KHÔNG trả lời dù NGỮ CẢNH tình cờ chứa câu chữ giống đáp án (vd: "Paris là thủ đô nước Pháp" chỉ là ví dụ logic mệnh đề, không phải kiến thức môn). Khi đó CHỈ từ chối ngắn gọn bằng ngôn ngữ của câu hỏi rằng tài liệu môn học không đề cập nội dung này (câu hỏi nằm ngoài phạm vi môn Trí tuệ nhân tạo) và KHÔNG ghi nguồn trích dẫn.
+2. Chỉ sử dụng thông tin trong NGỮ CẢNH. Không tự ý bổ sung kiến thức bên ngoài, không đoán.
 3. Nếu NGỮ CẢNH không có thông tin để trả lời, chỉ nói ngắn gọn (bằng ngôn ngữ của câu hỏi)
    rằng tài liệu môn học không đề cập nội dung này.
 4. Nếu NGỮ CẢNH chỉ có một phần thông tin, hãy trả lời phần có và nói rõ phần nào NGỮ CẢNH chưa đủ để trả lời.
@@ -116,7 +116,7 @@ QUY TẮC:
 6. Có thể sử dụng ví dụ nếu ví dụ đó có trong tài liệu.
 7. Trả lời bằng ngôn ngữ của câu hỏi.
 8. Sau mỗi nội dung có sử dụng thông tin tài liệu, ghi nguồn theo định dạng (Tên tài liệu, trang X-Y),
-   chép đúng theo nhãn trong ngoặc vuông ở đầu mỗi đoạn NGỮ CẢNH.
+   chép đúng theo tên tài liệu rõ ràng ở đầu mỗi đoạn NGỮ CẢNH (không cần lặp mã file dài).
    Dòng "<!-- page: N -->" (nếu có) cho biết nội dung ngay sau nó thuộc trang N.
 9. Công thức toán phải viết bằng LaTeX chuẩn để hiển thị rõ nét bằng KaTeX trên Streamlit:
    - Công thức quan trọng hoặc đứng riêng dòng: đặt trong cặp $$ trên dòng riêng, ví dụ:
@@ -125,16 +125,14 @@ QUY TẮC:
      $$
    - Biến hoặc biểu thức ngắn trong câu: đặt trong cặp $...$ KHÔNG có khoảng trắng sát dấu $ (vd: $\alpha$, $f(n) = g(n) + h(n)$, $O(b^d)$).
    - KHÔNG dùng \(...\), \[...\], KHÔNG đặt công thức trong code block, và KHÔNG viết công thức phức tạp kiểu plain text rời rạc (như π_θ / Σ_a').
-10. Phạm vi môn là Trí tuệ nhân tạo. Nếu câu hỏi hỏi kiến thức chung ngoài môn (địa lý, thủ đô, lịch sử...),
-    KHÔNG trả lời dù NGỮ CẢNH tình cờ chứa câu chữ giống đáp án (vd: "Paris là thủ đô nước Pháp" chỉ là ví dụ
-    logic mệnh đề, không phải nội dung môn). Khi đó từ chối ngắn gọn rằng tài liệu môn học
-    không đề cập nội dung này (câu hỏi ngoài phạm vi môn).
 
 NGỮ CẢNH:
 {context}
 
 CÂU HỎI:
 {question}
+
+(Lưu ý bắt buộc: nếu CÂU HỎI hỏi kiến thức phổ thông ngoài môn như địa lý/thủ đô/lịch sử — kể cả khi NGỮ CẢNH có câu ví dụ logic tương tự "Paris là thủ đô nước Pháp" — phải từ chối ngay theo Quy tắc 1 và không trích nguồn.)
 
 TRẢ LỜI:
 """
@@ -155,8 +153,9 @@ QUY TẮC:
 3. 4 phương án nhiễu phải hợp lý, độ dài tương đương, chỉ có đúng 1 đáp án đúng.
 4. Phần "explanation" viết súc tích 1-2 câu giải thích vì sao đáp án đó đúng.
 5. "source_idx" là số nguyên (1, 2, ...) khớp với nhãn [Nguồn X | ...] chứa thông tin của câu hỏi.
-6. KHÔNG dùng dấu gạch chéo ngược \ (tránh LaTeX thô) bên trong JSON; viết biểu thức bằng ký tự thường (vd: O(b^d), alpha-beta, f(n) = g(n) + h(n)).
-7. CHỈ trả về đúng một mảng JSON hợp lệ (không suy luận mở đầu, không markdown fence, không giải thích ngoài JSON):
+6. KHÔNG viết cụm "Theo nguồn X", "Theo đoạn văn", "Dựa vào ngữ cảnh" trong "question" hay "explanation" — câu hỏi phải độc lập, tự nhiên như đề thi thật; chỉ ghi số nguồn ở "source_idx".
+7. KHÔNG dùng dấu gạch chéo ngược \ (tránh LaTeX thô) bên trong JSON; viết biểu thức bằng ký tự thường (vd: O(b^d), alpha-beta, f(n) = g(n) + h(n)).
+8. CHỈ trả về đúng một mảng JSON hợp lệ (không suy luận mở đầu, không markdown fence, không giải thích ngoài JSON):
 [
   {{
     "question": "Nội dung câu hỏi?",
@@ -259,6 +258,16 @@ def invoke_text(make_chain, pairs, inputs, report=None):
             last_error = exc
     if last_error is not None:
         raise last_error
+
+
+def build_answer_chain(model, key):
+    """Tạo chain trả lời trực tiếp (tách khỏi cache_resource để hot-reload prompt ngay)."""
+    from langchain_core.output_parsers import StrOutputParser
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_groq import ChatGroq
+
+    prompt_template = ChatPromptTemplate.from_template(TEMPLATE)
+    return prompt_template | ChatGroq(model=model, api_key=key, temperature=0) | StrOutputParser()
 
 
 def build_quiz_chain(model, key):

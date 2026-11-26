@@ -87,12 +87,12 @@ def render_quiz_view(bundle):
     auto_gen = bool(st.session_state.pop("quiz_auto", False))
 
     with st.container(border=True):
-        c1, c2, c3 = st.columns([1.8, 2.0, 0.8], vertical_alignment="bottom")
+        c1, c2, c3 = st.columns([1.95, 1.95, 0.75], vertical_alignment="bottom")
         with c1:
             sel_cat = st.selectbox("Nhóm học phần", cat_options, key="quiz_cat")
         with c2:
             topic_q = st.text_input(
-                "Chủ đề trọng tâm (tùy chọn)",
+                "Chủ đề trọng tâm",
                 key="quiz_topic",
                 placeholder="VD: PEAS, DFS vs BFS, Minimax, SVM...",
             )

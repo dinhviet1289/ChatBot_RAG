@@ -71,6 +71,7 @@ class TestAppWiring(unittest.TestCase):
         self.assertIn("render_source_pills_html", conv_src)
         self.assertIn("open_in_inspector", conv_src)
         self.assertIn("build_followup_questions", conv_src)
+        self.assertIn('should_show_sources(last_msg.get("content")', conv_src)
 
     def test_sidebar_navigation_never_double_reruns(self):
         # Click button đã tự rerun một lần; gọi thêm st.rerun() trong handler là

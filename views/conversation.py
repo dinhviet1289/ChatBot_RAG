@@ -9,6 +9,7 @@ import time
 import streamlit as st
 
 from rag_engine_web import (
+    build_answer_chain,
     describe_llm_error,
     inspect_retrieval,
     model_chain,
@@ -200,7 +201,7 @@ def render_conversation_view(bundle):
                     width="stretch",
                     on_click=_on_inspect_last,
                 )
-            if not last_msg.get("is_error"):
+            if not last_msg.get("is_error") and should_show_sources(last_msg.get("content") or ""):
                 followups = build_followup_questions(
                     last_q or "",
                     last_msg.get("sources"),
@@ -270,11 +271,16 @@ def render_conversation_view(bundle):
             )
 
             ctx = format_selected_context(res["selected"])
+            make_ans = (
+                build_answer_chain
+                if bundle.get("db") is not None
+                else bundle["make_answer_chain"]
+            )
             answer_slot = st.empty()
             with answer_slot.container():
                 raw_answer = st.write_stream(_clear_stage_on_first_chunk(
                     stream_answer(
-                        bundle["make_answer_chain"],
+                        make_ans,
                         rotation_pairs(keys, model_chain(bundle["config"]["llm_model"])),
                         {"context": ctx, "question": prompt},
                         report=lambda model, key, fell_back: served.update(

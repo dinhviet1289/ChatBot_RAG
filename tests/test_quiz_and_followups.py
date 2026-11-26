@@ -106,10 +106,10 @@ class TestQuizAndFollowups(unittest.TestCase):
     "source_idx": 1,
   },
   {
-    "question": "Hàng đợi ưu tiên dùng trong thuật toán nào?",
+    "question": "Theo nguồn 6, hàng đợi ưu tiên dùng trong thuật toán nào?",
     "choices": {"A": "DFS", "B": "UCS", "C": "Hill", "D": "Random"},
     "answer": 1,
-    "explanation": "UCS mở rộng nút theo chi phí g(n).",
+    "explanation": "Dựa vào ngữ cảnh: UCS mở rộng nút theo chi phí g(n).",
   },
   {
     "question": "Câu thứ 3 bị cắt giữa chừng chưa kịp đóng JSON"""
@@ -119,6 +119,8 @@ class TestQuizAndFollowups(unittest.TestCase):
         self.assertEqual(qs[0]["options"]["A"], "$O(b^d)$")
         self.assertEqual(qs[1]["answer"], "B")
         self.assertEqual(qs[1]["options"]["B"], "UCS")
+        self.assertEqual(qs[1]["question"], "Hàng đợi ưu tiên dùng trong thuật toán nào?")
+        self.assertEqual(qs[1]["explanation"], "UCS mở rộng nút theo chi phí g(n).")
 
     def test_grade_quiz_computes_score_and_percentage(self):
         qs = [

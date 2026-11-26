@@ -526,6 +526,9 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn("padding-bottom:6rem;", css)
         self.assertIn(".rag-sys-row > span:first-child { white-space:nowrap;", css)
         self.assertIn("text-overflow:clip !important", css)
+        self.assertIn(".rag-stage1-table td:nth-child(5)", css)
+        self.assertIn("[data-testid=\"stChatMessage\"] table { display:block; width:100%; overflow-x:auto;", css)
+        self.assertIn('[data-testid="stSidebar"] [class*="st-key-conv_"] button [data-testid="stMarkdownContainer"]', css)
         self.assertNotIn("\n\n", css)
 
 

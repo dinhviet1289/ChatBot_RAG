@@ -1541,7 +1541,7 @@ textarea:focus-visible, select:focus-visible, [role="tab"]:focus-visible {
 a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:var(--text); }
 .rag-source-rank { font-weight:700; font-size:0.72rem; color:var(--info); }
 .rag-source-name { font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  max-width:220px; }
+  max-width:300px; }
 .rag-source-pg { color:var(--muted); font-size:0.72rem; white-space:nowrap; }
 .rag-source-pill.is-more { background:#FFFFFF; border-color:var(--border); color:var(--muted); }
 
@@ -1593,7 +1593,7 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
 .rag-lab-stat:nth-child(2) { border-top-color:var(--primary); }
 .rag-lab-stat:nth-child(3) { border-top-color:var(--success); }
 .rag-lab-k { font-family:var(--font-mono); font-size:0.75rem; color:var(--muted); letter-spacing:0.04em; }
-.rag-lab-v { font-size:1.3rem; font-weight:700; color:var(--text); margin:3px 0; }
+.rag-lab-v { font-size:1.22rem; font-weight:700; color:var(--text); margin:3px 0; white-space:nowrap; }
 .rag-lab-s { font-size:0.76rem; color:var(--muted); }
 .rag-latency-bar { display:flex; height:6px; border-radius:999px; overflow:hidden;
   background:#E2E8F0; gap:2px; margin-bottom:12px; }
@@ -1620,18 +1620,22 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
   border-left:2px solid var(--primary); padding-left:10px; }
 
 .rag-stage1-details, .rag-stage1-box { border:1px solid var(--border); border-radius:12px;
-  padding:10px 14px; background:#FFFFFF; box-shadow:0 1px 2px rgba(15,23,42,0.03); }
+  padding:10px 12px; background:#FFFFFF; box-shadow:0 1px 2px rgba(15,23,42,0.03);
+  max-width:100%; min-width:0; overflow:hidden; }
 .rag-stage1-details > summary { cursor:pointer; font-size:0.84rem; font-weight:600; color:var(--link);
   list-style:none; }
 .rag-stage1-details > summary::before { content:"▸ "; }
 .rag-stage1-details[open] > summary::before { content:"▾ "; }
-.rag-stage1-wrap { overflow-x:auto; margin-top:8px; animation:rag-fade 160ms var(--ease); }
-.rag-stage1-table { width:100%; border-collapse:collapse; font-size:0.8rem;
+.rag-stage1-wrap { width:100%; max-width:100%; overflow-x:auto; margin-top:8px;
+  animation:rag-fade 160ms var(--ease); }
+.rag-stage1-table { width:100%; border-collapse:collapse; font-size:0.78rem;
   font-variant-numeric:tabular-nums; }
-.rag-stage1-table th { text-align:left; color:var(--muted); font-weight:600; padding:7px 8px;
-  border-bottom:1px solid var(--border); font-family:var(--font-mono); font-size:0.75rem;
+.rag-stage1-table th { text-align:left; color:var(--muted); font-weight:600; padding:6px 6px;
+  border-bottom:1px solid var(--border); font-family:var(--font-mono); font-size:0.73rem;
   white-space:nowrap; }
-.rag-stage1-table td { padding:7px 8px; border-bottom:1px solid rgba(15,23,42,0.07); color:var(--text); }
+.rag-stage1-table td { padding:6px 6px; border-bottom:1px solid rgba(15,23,42,0.07); color:var(--text); }
+.rag-stage1-table td:nth-child(5) { max-width:200px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
 .rag-stage1-table td.rag-mono,
 .rag-stage1-table td:last-child { white-space:nowrap; }
 .rag-s1-kept { background:rgba(15,118,110,0.06); }
@@ -1717,7 +1721,8 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
 [class*="st-key-fup_"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
   color:var(--info); }
 [class*="st-key-quiz_preset_"] [data-testid="stBaseButton-secondary"] {
-  font-size:0.78rem; padding:0.35rem 0.5rem; min-height:2.2rem; height:auto !important;
+  font-size:0.78rem; padding:0.35rem 0.5rem; min-height:2.85rem; height:auto !important;
+  display:flex; align-items:center; justify-content:center;
   white-space:normal !important; line-height:1.25; }
 [class*="st-key-quiz_preset_"] [data-testid="stBaseButton-secondary"] [data-testid="stMarkdownContainer"] p {
   white-space:normal !important; overflow:visible !important; text-overflow:clip !important;
@@ -1752,19 +1757,26 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
   .rag-kpi-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 768px) {
-  [data-testid="stMainBlockContainer"] { padding:2.5rem var(--s-4) var(--s-6); }
+  [data-testid="stMainBlockContainer"] { padding:2.5rem var(--s-4) 6rem; }
   [data-testid="stBottomBlockContainer"] { padding-left:var(--s-4); padding-right:var(--s-4); }
   .rag-lab-summary, .rag-kpi-grid { grid-template-columns:1fr; }
   .rag-kpi-sub { white-space:normal; overflow-wrap:anywhere; }
   [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {
     flex-direction:row !important; flex-wrap:nowrap !important; align-items:center; gap:4px; }
-  [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
-    flex:1 1 0% !important; width:auto !important; min-width:0 !important; }
+  [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child,
+  [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child [data-testid="stButton"],
+  [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child button {
+    flex:1 1 0% !important; width:100% !important; min-width:0 !important; }
+  [data-testid="stSidebar"] [class*="st-key-conv_"] button [data-testid="stMarkdownContainer"] {
+    width:100% !important; min-width:0 !important; }
   [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
     flex:0 0 auto !important; width:auto !important; }
   [data-testid="stMain"] [data-testid="stHorizontalBlock"] { flex-direction:column; gap:10px; }
   [data-testid="stMain"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
     width:100% !important; flex:1 1 100% !important; }
+  [data-testid="stChatMessage"] table { display:block; width:100%; overflow-x:auto;
+    -webkit-overflow-scrolling:touch; }
+  [data-testid="stChatMessage"] th, [data-testid="stChatMessage"] td { min-width:115px; }
   [data-testid="stChatMessage"]:has([aria-label="Chat message from user"]),
   [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
     max-width:94% !important; }

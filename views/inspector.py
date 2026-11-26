@@ -53,7 +53,7 @@ def render_inspector_view(bundle):
         unsafe_allow_html=True,
     )
 
-    left, right = st.columns([1.15, 2.05], gap="large")
+    left, right = st.columns([1.28, 1.92], gap="medium")
     auto_run = bool(st.session_state.pop("dbg_auto", False))
     with left:
         with st.container(border=True):

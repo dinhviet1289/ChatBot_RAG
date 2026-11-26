@@ -8,7 +8,7 @@ from ui.catalog import CATALOG, DRIVE_LINKS, FALLBACK_CATEGORY, trang_label
 
 QUIZ_TOPICS = [
     ("PEAS & Tác tử", "Bài giảng ELC3008", "PEAS tác tử môi trường"),
-    ("Tìm kiếm DFS/BFS/A*", "Bài giảng ELC3008", "DFS BFS A* tìm kiếm heuristic"),
+    ("DFS / BFS / A*", "Bài giảng ELC3008", "DFS BFS A* tìm kiếm heuristic"),
     ("CSP & Minimax", "UC Berkeley CS188", "CSP Minimax Alpha-Beta backtracking"),
     ("Học máy & SVM", "Bài giảng Học máy (Tiếng Việt)", "SVM cây quyết định KNN hồi quy"),
     ("GAN / VAE / LLM", "Large Language Models", "Transformer attention LLM embedding"),
@@ -19,6 +19,10 @@ _WS_RE = re.compile(r"\s+")
 _THINK_RE = re.compile(r"<think>[\s\S]*?</think>", re.IGNORECASE)
 _THINK_TAG_RE = re.compile(r"</?think>", re.IGNORECASE)
 _OPT_PREFIX_RE = re.compile(r"^[A-Da-d][\.\):]\s*")
+_SOURCE_LEAK_RE = re.compile(
+    r"^(?:theo|dựa\s+trên|dựa\s+vào|trong)\s+(?:nguồn|đoạn(?:\s+văn)?|ngữ\s+cảnh)\s*\d*\s*[,:\-–]?\s*",
+    re.IGNORECASE,
+)
 _VALID_OR_LONE_BS_RE = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})|\\')
 _TRAILING_COMMA_RE = re.compile(r",\s*([}\]])")
 _LETTERS = ("A", "B", "C", "D")
@@ -211,6 +215,13 @@ def _normalize_answer(raw_ans, options):
     return next((k for k, v in options.items() if v.casefold() == stripped), None)
 
 
+def _strip_source_leak(text):
+    cleaned = _SOURCE_LEAK_RE.sub("", str(text or "").strip()).strip()
+    if cleaned and cleaned[0].islower():
+        cleaned = cleaned[0].upper() + cleaned[1:]
+    return cleaned
+
+
 def parse_quiz_response(raw_text, sampled_chunks, expected_count=5):
     """Parse and validate LLM JSON quiz output and bind verified PDF source metadata."""
     sanitized = _sanitize_json_text(raw_text)
@@ -223,7 +234,7 @@ def parse_quiz_response(raw_text, sampled_chunks, expected_count=5):
     for item in raw_items:
         if not isinstance(item, dict):
             continue
-        q_text = str(item.get("question") or "").strip()
+        q_text = _strip_source_leak(item.get("question") or "")
         options = _normalize_options(item.get("options") or item.get("choices"))
         ans = _normalize_answer(
             item.get("answer") if item.get("answer") is not None else (item.get("correct_answer") or item.get("correct")),
@@ -232,7 +243,7 @@ def parse_quiz_response(raw_text, sampled_chunks, expected_count=5):
         if not q_text or not options or not ans:
             continue
 
-        explanation = str(item.get("explanation") or item.get("reason") or "").strip()
+        explanation = _strip_source_leak(item.get("explanation") or item.get("reason") or "")
         src_meta = {}
         if chunks:
             raw_idx = item.get("source_idx")
