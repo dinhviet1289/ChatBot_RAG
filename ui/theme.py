@@ -1861,11 +1861,11 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
   animation:rag-fade 160ms var(--ease); }
 .rag-stage1-table { width:100%; border-collapse:collapse; font-size:0.78rem;
   font-variant-numeric:tabular-nums; }
-.rag-stage1-table th { text-align:left; color:var(--muted); font-weight:600; padding:6px 6px;
+.rag-stage1-table th { text-align:left; color:var(--muted); font-weight:600; padding:6px 4px;
   border-bottom:1px solid var(--border); font-family:var(--font-mono); font-size:0.73rem;
   white-space:nowrap; }
-.rag-stage1-table td { padding:6px 6px; border-bottom:1px solid rgba(15,23,42,0.07); color:var(--text); }
-.rag-stage1-table td:nth-child(5) { max-width:180px; overflow:hidden; text-overflow:ellipsis;
+.rag-stage1-table td { padding:6px 4px; border-bottom:1px solid rgba(15,23,42,0.07); color:var(--text); }
+.rag-stage1-table td:nth-child(5) { max-width:168px; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; }
 .rag-stage1-table td.rag-mono,
 .rag-stage1-table td:last-child { white-space:nowrap; }
