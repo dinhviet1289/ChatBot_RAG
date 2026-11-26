@@ -43,6 +43,18 @@ _CATEGORY_COLORS = (
 )
 
 _PAGE_COMMENT = re.compile(r"<!--\s*page:\s*\d+\s*-->")
+_HL_STOPWORDS = frozenset({
+    "là", "gì", "và", "của", "cho", "trong", "với", "các", "những", "một",
+    "như", "thế", "nào", "ra", "sao", "có", "không", "được", "trên", "dưới",
+    "theo", "từ", "đến", "khi", "nếu", "thì", "hay", "hoặc", "về", "hãy",
+    "nêu", "so", "sánh", "giải", "thích", "trình", "bày", "ví", "dụ", "phân",
+    "biệt", "câu", "hỏi", "phần", "chương", "bài", "mô", "hình", "thuật",
+    "toán", "gồm", "thành", "tài", "liệu", "giữa", "khác", "nhau", "sự",
+    "cách", "này", "đó", "tại", "bằng", "nhưng", "làm", "nên", "vào",
+    "the", "and", "for", "with", "from", "what", "how", "why", "are", "is",
+    "in", "of", "to", "on", "vs", "or", "an", "by",
+})
+_HTML_ENTITY_OR_TAG = re.compile(r"(&[a-zA-Z0-9#]+;|<[^>]+>)")
 _WHITESPACE = re.compile(r"\s+")
 
 _FENCED_CODE_RE = re.compile(r"```([^\n`]*)\n([\s\S]*?)```")
@@ -426,6 +438,36 @@ def clean_snippet(text, max_len=240):
     return (escaped + "…") if truncated else escaped
 
 
+def highlight_query_terms(escaped_html, query):
+    """Highlight query keywords inside already-escaped HTML without altering tags or entities."""
+    if not escaped_html or not query:
+        return escaped_html
+    raw_tokens = re.findall(r"[^\W_]+", str(query), flags=re.UNICODE)
+    seen = set()
+    terms = []
+    for tok in raw_tokens:
+        if len(tok) < 2 or tok.isdigit():
+            continue
+        key = tok.casefold()
+        if key in _HL_STOPWORDS or key in seen:
+            continue
+        seen.add(key)
+        terms.append(tok)
+    if not terms:
+        return escaped_html
+    terms.sort(key=len, reverse=True)
+    terms = terms[:8]
+    pattern = re.compile(
+        r"(?<![^\W_])(" + "|".join(re.escape(t) for t in terms) + r")(?![^\W_])",
+        flags=re.IGNORECASE | re.UNICODE,
+    )
+    parts = _HTML_ENTITY_OR_TAG.split(escaped_html)
+    for idx in range(0, len(parts), 2):
+        if parts[idx]:
+            parts[idx] = pattern.sub(r'<mark class="rag-hl">\1</mark>', parts[idx])
+    return "".join(parts)
+
+
 def _fmt_score(score, decimals=3):
     if isinstance(score, bool):
         return None
@@ -511,7 +553,7 @@ def render_page_header_html(title, subtitle="", chips=None):
     )
 
 
-def render_citation_box_html(sources):
+def render_citation_box_html(sources, query=""):
     """Render cited chunks with visual confidence meter and collapsible verbatim snippet."""
     if not sources:
         return ""
@@ -562,7 +604,10 @@ def render_citation_box_html(sources):
             f'<span class="rag-cite-page">Trang {html.escape(trang)}</span>'
             if trang else ""
         )
-        snippet = clean_snippet(s.get("snippet") or "", max_len=240)
+        snippet = highlight_query_terms(
+            clean_snippet(s.get("snippet") or "", max_len=240),
+            query,
+        )
         snippet_html = (
             f'<details class="rag-cite-details">'
             f'<summary>Trích đoạn</summary>'
@@ -590,6 +635,128 @@ def render_citation_box_html(sources):
         f'<ol class="rag-cite-list" style="list-style:none;margin:0;padding:0;">'
         f'{"".join(items)}</ol></div>'
     )
+
+
+def render_pipeline_stepper_html(
+    phase=1,
+    retrieve_ms=None,
+    rerank_ms=None,
+    selected_count=None,
+    total_candidates=None,
+    rerank_enabled=True,
+):
+    """Render a 3-step visual RAG pipeline progress stepper during live generation."""
+    def _num(val):
+        return isinstance(val, (int, float)) and not isinstance(val, bool) and math.isfinite(val)
+
+    if int(phase or 1) <= 1:
+        steps = [
+            ("is-active", '<span class="rag-step-dot"></span>', "1. Quét Hybrid BM25 + FAISS"),
+            ("is-wait", '<span class="rag-step-idx">2</span>', "Cross-Encoder Rerank"),
+            ("is-wait", '<span class="rag-step-idx">3</span>', "Tổng hợp câu trả lời"),
+        ]
+    else:
+        ret_txt = f" ({float(retrieve_ms):.0f}ms)" if _num(retrieve_ms) else ""
+        if rerank_enabled:
+            rer_txt = f" {float(rerank_ms):.0f}ms" if _num(rerank_ms) else ""
+            if _num(selected_count) and _num(total_candidates):
+                cnt_txt = f" · {int(selected_count)}/{int(total_candidates)}"
+            elif _num(selected_count):
+                cnt_txt = f" · Top-{int(selected_count)}"
+            else:
+                cnt_txt = ""
+            step2_lbl = f"2. Rerank{rer_txt}{cnt_txt}"
+        else:
+            cnt_txt = f" {int(selected_count)} đoạn" if _num(selected_count) else " Stage-1"
+            step2_lbl = f"2. Chọn{cnt_txt}"
+        steps = [
+            ("is-done", '<span class="rag-step-check">✓</span>', f"1. Hybrid{ret_txt}"),
+            ("is-done", '<span class="rag-step-check">✓</span>', step2_lbl),
+            ("is-active is-synth", '<span class="rag-step-dot"></span>', "3. Đang viết câu trả lời..."),
+        ]
+
+    parts = []
+    for idx, (cls_state, marker, label) in enumerate(steps):
+        if idx > 0:
+            parts.append('<span class="rag-step-sep" aria-hidden="true">→</span>')
+        parts.append(f'<span class="rag-step {cls_state}">{marker}<span>{html.escape(label)}</span></span>')
+    return f'<div class="rag-stepper rag-mono" role="status" aria-live="polite">{"".join(parts)}</div>'
+
+
+def render_flashcards_html(questions):
+    """Render a 2-column grid of pure HTML/CSS 3D flip flashcards for quiz review."""
+    questions = list(questions or [])
+    if not questions:
+        return ""
+    total = len(questions)
+    cards = []
+    for idx, q in enumerate(questions, 1):
+        q_txt = html.escape(latex_to_plain_text(str(q.get("question") or "")))
+        opts = q.get("options") or {}
+        ans = str(q.get("answer") or "A").strip().upper()
+        if ans not in opts:
+            ans = next(iter(opts.keys()), "A")
+        ans_esc = html.escape(ans)
+        ans_body = html.escape(latex_to_plain_text(str(opts.get(ans) or "")))
+        exp_raw = str(q.get("explanation") or "").strip()
+        exp_html = (
+            f'<div class="rag-fc-exp">{html.escape(latex_to_plain_text(exp_raw))}</div>'
+            if exp_raw else ""
+        )
+
+        opt_items = []
+        for letter in ("A", "B", "C", "D"):
+            if letter in opts:
+                opt_val = html.escape(latex_to_plain_text(str(opts[letter])))
+                opt_items.append(
+                    f'<div class="rag-fc-opt"><span class="rag-fc-opt-k rag-mono">{letter}.</span> {opt_val}</div>'
+                )
+        opts_html = f'<div class="rag-fc-opts">{"".join(opt_items)}</div>' if opt_items else ""
+
+        title_esc = html.escape(str(q.get("doc_title") or "Tài liệu"))
+        trang_esc = html.escape(str(q.get("trang") or "?"))
+        label = f"{title_esc} · Trang {trang_esc}"
+        url = q.get("url")
+        if isinstance(url, str) and url.startswith("https://"):
+            url_esc = html.escape(url, quote=True)
+            foot_html = (
+                f'<a class="rag-source-pill" href="{url_esc}" target="_blank" '
+                f'rel="noopener noreferrer"><span class="rag-source-name">{label}</span></a>'
+            )
+        else:
+            foot_html = f'<span class="rag-source-pill"><span class="rag-source-name">{label}</span></span>'
+
+        cards.append(
+            f'<div class="rag-fc-wrap">'
+            f'<label class="rag-fc-card">'
+            f'<input type="checkbox" class="rag-fc-toggle" aria-label="Lật thẻ câu {idx}">'
+            f'<div class="rag-fc-inner">'
+            f'<div class="rag-fc-front">'
+            f'<div class="rag-fc-top">'
+            f'<span class="rag-rank-badge rag-mono">Thẻ {idx}/{total}</span>'
+            f'<span class="rag-fc-hint rag-mono">Nhấn để lật ↻</span>'
+            f'</div>'
+            f'<div class="rag-fc-body">'
+            f'<div class="rag-fc-q">{q_txt}</div>'
+            f'{opts_html}'
+            f'</div>'
+            f'</div>'
+            f'<div class="rag-fc-back">'
+            f'<div class="rag-fc-top">'
+            f'<span class="rag-quiz-status is-ok rag-mono">ĐÁP ÁN {ans_esc}</span>'
+            f'<span class="rag-fc-hint rag-mono">Nhấn để úp lại ↺</span>'
+            f'</div>'
+            f'<div class="rag-fc-body">'
+            f'<div class="rag-fc-ans"><strong>{ans_esc}.</strong> {ans_body}</div>'
+            f'{exp_html}'
+            f'</div>'
+            f'</div>'
+            f'</div>'
+            f'</label>'
+            f'<div class="rag-fc-foot">{foot_html}</div>'
+            f'</div>'
+        )
+    return f'<div class="rag-fc-grid">{"".join(cards)}</div>'
 
 
 def render_source_pills_html(sources, max_pills=4):
@@ -779,6 +946,7 @@ def render_retrieval_stage2_html(res):
     if not selected:
         return '<div class="rag-lab-empty">Không tìm thấy ứng viên phù hợp cho truy vấn này.</div>'
 
+    query = str((res or {}).get("question") or "")
     topk_cards = []
     for pos, item in enumerate(selected, 1):
         final_rank = int(item.get("final_rank") or pos)
@@ -801,7 +969,10 @@ def render_retrieval_stage2_html(res):
                 f'</span>'
             )
 
-        snip = clean_snippet(item.get("snippet") or "", max_len=220)
+        snip = highlight_query_terms(
+            clean_snippet(item.get("snippet") or "", max_len=220),
+            query,
+        )
         snip_html = f'<div class="rag-rerank-snip">{snip}</div>' if snip else ""
         topk_cards.append(
             f'<div class="rag-rerank-card">'
@@ -1158,6 +1329,8 @@ a:hover { color:var(--primary-end); }
 @keyframes rag-fade { from { opacity:0; } to { opacity:1; } }
 @keyframes rag-pulse { 0%, 100% { opacity:0.5; transform:scale(0.95); }
   50% { opacity:1; transform:scale(1.1); } }
+@keyframes rag-flow { 0%, 100% { opacity:0.55; transform:translateX(0); }
+  50% { opacity:1; transform:translateX(2px); } }
 
 * { scrollbar-width:thin; scrollbar-color:rgba(15,23,42,0.16) var(--sidebar); }
 ::-webkit-scrollbar { width:8px; height:8px; }
@@ -1377,6 +1550,34 @@ a:hover { color:var(--primary-end); }
   color:var(--text); font-weight:600; font-size:0.95rem; }
 [class*="st-key-sug_"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
   color:var(--primary); }
+[class*="st-key-sug_0"] [data-testid="stBaseButton-secondary"] {
+  border-top:3px solid #2447C7; }
+[class*="st-key-sug_0"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
+  color:#2447C7; }
+[class*="st-key-sug_0"] [data-testid="stBaseButton-secondary"]:hover {
+  border-color:rgba(36,71,199,0.44);
+  box-shadow:inset 3px 0 0 #2447C7, 0 8px 22px rgba(36,71,199,0.10); }
+[class*="st-key-sug_1"] [data-testid="stBaseButton-secondary"] {
+  border-top:3px solid #0F766E; }
+[class*="st-key-sug_1"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
+  color:#0F766E; }
+[class*="st-key-sug_1"] [data-testid="stBaseButton-secondary"]:hover {
+  border-color:rgba(15,118,110,0.44);
+  box-shadow:inset 3px 0 0 #0F766E, 0 8px 22px rgba(15,118,110,0.10); }
+[class*="st-key-sug_2"] [data-testid="stBaseButton-secondary"] {
+  border-top:3px solid #6D28D9; }
+[class*="st-key-sug_2"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
+  color:#6D28D9; }
+[class*="st-key-sug_2"] [data-testid="stBaseButton-secondary"]:hover {
+  border-color:rgba(109,40,217,0.44);
+  box-shadow:inset 3px 0 0 #6D28D9, 0 8px 22px rgba(109,40,217,0.10); }
+[class*="st-key-sug_3"] [data-testid="stBaseButton-secondary"] {
+  border-top:3px solid #B45309; }
+[class*="st-key-sug_3"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
+  color:#B45309; }
+[class*="st-key-sug_3"] [data-testid="stBaseButton-secondary"]:hover {
+  border-color:rgba(180,83,9,0.44);
+  box-shadow:inset 3px 0 0 #B45309, 0 8px 22px rgba(180,83,9,0.10); }
 
 [class*="st-key-regen"] [data-testid="stBaseButton-secondary"],
 [class*="st-key-inspect_last"] [data-testid="stBaseButton-secondary"] {
@@ -1501,7 +1702,9 @@ textarea:focus-visible, select:focus-visible, [role="tab"]:focus-visible {
   background:rgba(36,71,199,0.08); border:1px solid rgba(36,71,199,0.2);
   border-radius:999px; padding:4px 12px; margin-bottom:10px; }
 .rag-hero-title { font-size:2rem; font-weight:800; letter-spacing:-0.03em; margin:0;
-  color:var(--text); text-wrap:balance; }
+  color:var(--text); text-wrap:balance;
+  background:linear-gradient(135deg, #0F172A 18%, var(--primary) 62%, var(--info) 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 .rag-hero-sub { color:var(--muted); margin-top:8px; font-size:0.95rem; max-width:580px;
   margin-left:auto; margin-right:auto; line-height:1.55; }
 .rag-hero-pills { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:14px; }
@@ -1513,9 +1716,35 @@ textarea:focus-visible, select:focus-visible, [role="tab"]:focus-visible {
 .rag-flow-step { font-family:var(--font-mono); font-size:0.75rem; font-weight:500;
   color:var(--muted); background:#FFFFFF; border:1px solid var(--border);
   border-radius:8px; padding:3px 10px; }
-.rag-flow-arrow { color:var(--primary); font-weight:700; font-size:0.85rem; }
+.rag-flow-arrow { color:var(--primary); font-weight:700; font-size:0.85rem;
+  display:inline-block; animation:rag-flow 1.8s ease-in-out infinite; }
+.rag-flow-arrow:last-of-type { animation-delay:0.4s; }
 
-/* Live Retrieval Indicator */
+/* Live Retrieval Indicator & 3-Step Pipeline Stepper */
+.rag-stepper { display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+  padding:8px 12px; border-radius:12px; background:#F8FAFC;
+  border:1px solid var(--border); font-size:0.78rem; margin-bottom:6px; }
+.rag-step { display:inline-flex; align-items:center; gap:6px; padding:3px 10px;
+  border-radius:999px; border:1px solid var(--border); font-weight:500; line-height:1.35; }
+.rag-step.is-done { background:#ECFDF5; color:var(--success);
+  border-color:rgba(4,120,87,0.24); font-weight:600; }
+.rag-step.is-active { background:#EEF2FF; color:var(--link);
+  border-color:rgba(36,71,199,0.28); font-weight:600; }
+.rag-step.is-active.is-synth { background:#F0FDFA; color:var(--info);
+  border-color:rgba(15,118,110,0.28); }
+.rag-step.is-wait { background:#FFFFFF; color:var(--muted); opacity:0.78; }
+.rag-step-dot { width:7px; height:7px; border-radius:50%; background:var(--primary);
+  box-shadow:0 0 0 3px rgba(36,71,199,0.2);
+  animation:rag-pulse 1.15s ease-in-out infinite; flex-shrink:0; }
+.rag-step.is-synth .rag-step-dot { background:var(--info);
+  box-shadow:0 0 0 3px rgba(15,118,110,0.2); }
+.rag-step-check { font-weight:700; }
+.rag-step-idx { display:inline-flex; align-items:center; justify-content:center;
+  width:15px; height:15px; border-radius:50%; background:rgba(15,23,42,0.08);
+  font-size:0.68rem; font-weight:700; }
+.rag-step-sep { color:var(--muted); font-weight:600; font-size:0.78rem; }
+mark.rag-hl { background:#FEF08A; color:#0F172A; padding:0 3px; border-radius:4px;
+  font-weight:600; box-shadow:0 0 0 1px rgba(202,138,4,0.22); }
 .rag-stage-live { display:flex; align-items:center; gap:10px; min-height:38px;
   padding:8px 14px; border-radius:10px; background:#EEF2FF; border:1px solid rgba(36,71,199,0.2);
   color:var(--link); font-size:0.83rem; font-family:var(--font-mono); }
@@ -1755,13 +1984,46 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
 .rag-quiz-fb.is-ok { background:#ECFDF5; border-left:3px solid var(--success); }
 .rag-quiz-fb.is-wrong { background:#FEF2F2; border-left:3px solid var(--danger); }
 
+/* 3D Flip Flashcards */
+.rag-fc-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;
+  margin:10px 0 14px; }
+.rag-fc-wrap { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.rag-fc-card { display:block; perspective:1100px; cursor:pointer; user-select:none;
+  position:relative; margin:0; }
+.rag-fc-toggle { position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
+.rag-fc-inner { display:grid; grid-template-columns:minmax(0, 1fr); transform-style:preserve-3d;
+  transition:transform 0.52s cubic-bezier(0.22, 1, 0.36, 1); }
+.rag-fc-toggle:checked + .rag-fc-inner { transform:rotateY(180deg); }
+.rag-fc-front, .rag-fc-back { grid-area:1 / 1; backface-visibility:hidden;
+  -webkit-backface-visibility:hidden; border-radius:14px; padding:16px 18px; min-height:220px;
+  display:flex; flex-direction:column; justify-content:flex-start; gap:10px;
+  box-shadow:0 2px 8px rgba(15,23,42,0.05); }
+.rag-fc-front { background:#FFFFFF; border:1px solid var(--border); border-top:3px solid var(--primary); }
+.rag-fc-card:hover .rag-fc-front { border-color:rgba(36,71,199,0.38);
+  box-shadow:0 8px 22px rgba(15,23,42,0.08); }
+.rag-fc-back { transform:rotateY(180deg);
+  background:linear-gradient(180deg, #F0FDFA 0%, #FFFFFF 100%);
+  border:1px solid rgba(15,118,110,0.32); border-top:3px solid var(--info); }
+.rag-fc-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.rag-fc-hint { font-size:0.72rem; color:var(--muted); }
+.rag-fc-body { display:flex; flex-direction:column; gap:8px; }
+.rag-fc-q { font-size:0.93rem; font-weight:600; color:var(--text); line-height:1.5; }
+.rag-fc-opts { display:flex; flex-direction:column; gap:4px; padding-top:4px;
+  border-top:1px dashed var(--border); }
+.rag-fc-opt { font-size:0.81rem; color:var(--muted); line-height:1.4; }
+.rag-fc-opt-k { font-weight:700; color:var(--link); }
+.rag-fc-ans { font-size:0.95rem; font-weight:600; color:var(--success); line-height:1.5; }
+.rag-fc-exp { font-size:0.84rem; color:#334155; line-height:1.55; padding:8px 10px;
+  background:rgba(15,118,110,0.06); border-left:3px solid var(--info); border-radius:8px; }
+.rag-fc-foot { display:flex; align-items:center; }
+
 @media (max-width: 1120px) {
   .rag-kpi-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 768px) {
   [data-testid="stMainBlockContainer"] { padding:2.5rem var(--s-4) 6rem; }
   [data-testid="stBottomBlockContainer"] { padding-left:var(--s-4); padding-right:var(--s-4); }
-  .rag-lab-summary, .rag-kpi-grid { grid-template-columns:1fr; }
+  .rag-lab-summary, .rag-kpi-grid, .rag-fc-grid { grid-template-columns:1fr; }
   .rag-kpi-sub { white-space:normal; overflow-wrap:anywhere; }
   [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {
     display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;

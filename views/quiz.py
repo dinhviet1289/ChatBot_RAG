@@ -22,7 +22,11 @@ from ui.quiz import (
     parse_quiz_response,
     sample_quiz_chunks,
 )
-from ui.theme import normalize_latex_for_streamlit, render_page_header_html
+from ui.theme import (
+    normalize_latex_for_streamlit,
+    render_flashcards_html,
+    render_page_header_html,
+)
 
 logger = logging.getLogger(__name__)
 ALL_CATEGORIES_LABEL = "Tất cả (44 học liệu)"
@@ -229,6 +233,42 @@ def render_quiz_view(bundle):
         unsafe_allow_html=True,
     )
 
+    mode_quiz = "Làm bài trắc nghiệm"
+    mode_flash = "Lật thẻ Flashcard 3D"
+    st.session_state.setdefault("quiz_view_mode", mode_quiz)
+    if hasattr(st, "segmented_control"):
+        view_mode = (
+            st.segmented_control(
+                "Chế độ ôn tập",
+                [mode_quiz, mode_flash],
+                key="quiz_view_mode",
+                label_visibility="collapsed",
+            )
+            or mode_quiz
+        )
+    else:
+        view_mode = st.radio(
+            "Chế độ ôn tập",
+            [mode_quiz, mode_flash],
+            key="quiz_view_mode",
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+
+    if view_mode == mode_flash:
+        st.caption(
+            "Nhấn trực tiếp vào từng thẻ để lật xem đáp án & giải thích · Bấm link bên dưới thẻ để mở trang PDF gốc."
+        )
+        st.markdown(render_flashcards_html(questions), unsafe_allow_html=True)
+        st.button(
+            ":material/auto_awesome: Sinh bộ thẻ mới",
+            key="fc_regen",
+            type="primary",
+            width="stretch",
+            on_click=_request_new_quiz,
+        )
+        return
+
     graded = sess.get("graded")
     if graded is None:
         with st.form(f"quiz_answer_form_{quiz_id}_{attempt}", border=False):
@@ -259,21 +299,36 @@ def render_quiz_view(bundle):
                 width="stretch",
             )
         if submitted:
-            sess["graded"] = grade_quiz(questions, selected_answers)
+            graded_res = grade_quiz(questions, selected_answers)
+            sess["graded"] = graded_res
+            if graded_res["pct"] >= 80.0:
+                sess["celebrate_now"] = True
             st.rerun()
         return
+
+    if sess.pop("celebrate_now", False):
+        st.balloons()
 
     score = graded["score"]
     total = graded["total"]
     pct = graded["pct"]
     tone = "is-ok" if pct >= 80.0 else ("is-warn" if pct >= 50.0 else "is-danger")
+    score_note = (
+        "Xuất sắc! Bạn nắm rất chắc phần học liệu này · Đối chiếu chi tiết bên dưới"
+        if pct >= 80.0
+        else (
+            "Khá tốt! Xem lại các câu sai và trang tài liệu gốc bên dưới"
+            if pct >= 50.0
+            else "Cần ôn kỹ thêm! Đọc giải thích và mở trang PDF gốc bên dưới"
+        )
+    )
     bar_w = max(2.0, min(100.0, pct))
     st.markdown(
         f'<div class="rag-quiz-score {tone}">'
         f'<div class="rag-quiz-score-top">'
         f'<div><div class="rag-lab-k">KẾT QUẢ BÀI LÀM</div>'
         f'<div class="rag-quiz-score-num rag-mono">{score} / {total} câu đúng ({pct:.0f}%)</div></div>'
-        f'<div class="rag-quiz-score-note">Đối chiếu trực tiếp đáp án và trang tài liệu bên dưới</div>'
+        f'<div class="rag-quiz-score-note">{score_note}</div>'
         f'</div>'
         f'<div class="rag-doc-bar"><span style="width:{bar_w:.1f}%;"></span></div>'
         f'</div>',

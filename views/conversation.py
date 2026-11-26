@@ -36,6 +36,7 @@ from ui.theme import (
     normalize_latex_for_streamlit,
     render_citation_box_html,
     render_page_header_html,
+    render_pipeline_stepper_html,
     render_source_pills_html,
     render_turn_telemetry_html,
 )
@@ -108,7 +109,10 @@ def _render_conv_header(conv, bundle):
 
 
 def _render_history(conv):
+    last_user_q = ""
     for msg in conv["messages"]:
+        if msg["role"] == "user":
+            last_user_q = msg.get("content") or ""
         avatar = USER_AVATAR if msg["role"] == "user" else AI_AVATAR
         with st.chat_message(msg["role"], avatar=avatar):
             if msg["role"] == "assistant" and msg.get("is_error"):
@@ -126,8 +130,10 @@ def _render_history(conv):
                                 unsafe_allow_html=True)
                     with st.expander(f"Nguồn trích dẫn & truy hồi ({len(msg['sources'])})",
                                      expanded=False):
-                        st.markdown(render_citation_box_html(msg["sources"]),
-                                    unsafe_allow_html=True)
+                        st.markdown(
+                            render_citation_box_html(msg["sources"], query=last_user_q),
+                            unsafe_allow_html=True,
+                        )
 
 
 def _render_empty_state(state, bundle=None):
@@ -250,23 +256,20 @@ def render_conversation_view(bundle):
     with st.chat_message("assistant", avatar=AI_AVATAR):
         stage_slot = st.empty()
         stage_slot.markdown(
-            '<div class="rag-stage-live">'
-            '<span class="rag-stage-dot"></span>'
-            '<span>Đang truy hồi Hybrid BM25 + FAISS &amp; chấm điểm Rerank...</span>'
-            '</div>',
+            render_pipeline_stepper_html(phase=1),
             unsafe_allow_html=True,
         )
         try:
             res = inspect_retrieval(bundle, prompt)
-            stage_ms = float(res.get("retrieve_ms") or 0.0) + (
-                float(res.get("rerank_ms") or 0.0) if res.get("rerank_enabled") else 0.0
-            )
             stage_slot.markdown(
-                f'<div class="rag-stage-live is-synth">'
-                f'<span class="rag-stage-dot"></span>'
-                f'<span>Đã chọn {len(res.get("selected") or [])} đoạn trích '
-                f'({stage_ms:.0f} ms) · Đang tổng hợp câu trả lời...</span>'
-                f'</div>',
+                render_pipeline_stepper_html(
+                    phase=2,
+                    retrieve_ms=res.get("retrieve_ms"),
+                    rerank_ms=res.get("rerank_ms"),
+                    selected_count=len(res.get("selected") or []),
+                    total_candidates=res.get("total_candidates"),
+                    rerank_enabled=bool(res.get("rerank_enabled")),
+                ),
                 unsafe_allow_html=True,
             )
 
@@ -297,7 +300,7 @@ def render_conversation_view(bundle):
             if sources:
                 st.markdown(render_source_pills_html(sources), unsafe_allow_html=True)
                 with st.expander(f"Nguồn trích dẫn & truy hồi ({len(sources)})", expanded=False):
-                    st.markdown(render_citation_box_html(sources), unsafe_allow_html=True)
+                    st.markdown(render_citation_box_html(sources, query=prompt), unsafe_allow_html=True)
             append_assistant_turn(
                 state, answer, sources,
                 latency_s=total_s,

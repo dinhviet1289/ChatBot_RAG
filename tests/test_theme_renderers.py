@@ -3,11 +3,14 @@ from ui.theme import (
     PALETTE,
     _global_css,
     clean_snippet,
+    highlight_query_terms,
     latex_to_plain_text,
     normalize_latex_for_streamlit,
     render_citation_box_html,
     render_corpus_overview_html,
     render_doc_card_html,
+    render_flashcards_html,
+    render_pipeline_stepper_html,
     render_retrieval_panel_html,
     render_system_card_html,
     render_turn_telemetry_html,
@@ -530,6 +533,90 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn('[data-testid="stChatMessage"] table { display:table !important; width:max-content !important;', css)
         self.assertIn("width:calc(100% - 38px) !important;", css)
         self.assertIn('[data-testid="stSidebar"] [class*="st-key-conv_"] button [data-testid="stMarkdownContainer"]', css)
+        self.assertNotIn("\n\n", css)
+
+    def test_highlight_query_terms_marks_keywords_without_corrupting_entities(self):
+        cleaned = clean_snippet("So sánh <DFS> & BFS trong bài toán tìm kiếm AI và khái niệm", max_len=160)
+        hl = highlight_query_terms(cleaned, "Sự khác nhau giữa DFS vs BFS trong AI?")
+        self.assertIn('&lt;<mark class="rag-hl">DFS</mark>&gt;', hl)
+        self.assertIn('<mark class="rag-hl">BFS</mark>', hl)
+        self.assertIn('<mark class="rag-hl">AI</mark>', hl)
+        self.assertIn("&amp;", hl)
+        # Stopwords và chuỗi con bên trong từ khác ('khái') không bị highlight sai.
+        self.assertNotIn('<mark class="rag-hl">trong</mark>', hl)
+        self.assertIn("khái", hl)
+        self.assertNotIn('kh<mark class="rag-hl">', hl)
+
+        cited = render_citation_box_html(
+            [{"doc_id": "d1", "doc_title": "Slide", "trang": "5", "snippet": "Cắt tỉa Alpha-Beta với Minimax"}],
+            query="Thuật toán Minimax là gì?",
+        )
+        self.assertIn('<mark class="rag-hl">Minimax</mark>', cited)
+
+    def test_render_pipeline_stepper_shows_phases_and_timings(self):
+        p1 = render_pipeline_stepper_html(phase=1)
+        self.assertIn("rag-stepper", p1)
+        self.assertIn("is-active", p1)
+        self.assertIn("1. Quét Hybrid BM25 + FAISS", p1)
+        self.assertIn("is-wait", p1)
+
+        p2 = render_pipeline_stepper_html(
+            phase=2,
+            retrieve_ms=42.6,
+            rerank_ms=118.2,
+            selected_count=5,
+            total_candidates=20,
+            rerank_enabled=True,
+        )
+        self.assertIn("1. Hybrid (43ms)", p2)
+        self.assertIn("2. Rerank 118ms · 5/20", p2)
+        self.assertIn("3. Đang viết câu trả lời...", p2)
+
+        p2_no_rr = render_pipeline_stepper_html(phase=2, retrieve_ms=30.0, selected_count=4, rerank_enabled=False)
+        self.assertIn("2. Chọn 4 đoạn", p2_no_rr)
+
+    def test_render_flashcards_html_escapes_math_and_blocks_unsafe_links(self):
+        self.assertEqual(render_flashcards_html([]), "")
+        cards = render_flashcards_html([
+            {
+                "question": r"Độ phức tạp của $\text{BFS}$ là <O(b^d)>?",
+                "options": {"A": "$O(b^d)$", "B": "O(1)", "C": "O(n)", "D": "O(log n)"},
+                "answer": "A",
+                "explanation": r"BFS duyệt theo tầng nên tốn $O(b^d)$ <script>x</script>.",
+                "doc_title": "Slide <Ch3>",
+                "trang": "12",
+                "url": "https://drive.google.com/file/d/abc/view",
+            },
+            {
+                "question": "Thẻ 2",
+                "options": {"A": "1", "B": "2", "C": "3", "D": "4"},
+                "answer": "B",
+                "explanation": "Giải thích thẻ 2",
+                "doc_title": "Doc JS",
+                "trang": "4",
+                "url": "javascript:alert(1)",
+            },
+        ])
+        self.assertIn('class="rag-fc-grid"', cards)
+        self.assertIn('class="rag-fc-toggle"', cards)
+        self.assertIn("Thẻ 1/2", cards)
+        self.assertIn("ĐÁP ÁN A", cards)
+        self.assertIn("O(b^d)", cards)
+        self.assertIn("&lt;script&gt;x&lt;/script&gt;", cards)
+        self.assertNotIn("<script>", cards)
+        self.assertIn("https://drive.google.com/file/d/abc/view", cards)
+        self.assertNotIn("javascript:alert", cards)
+
+    def test_global_css_includes_combo1_cards_stepper_highlight_and_flashcards(self):
+        css = _global_css()
+        for key in ("sug_0", "sug_1", "sug_2", "sug_3"):
+            self.assertIn(f'[class*="st-key-{key}"]', css)
+        self.assertIn("@keyframes rag-flow", css)
+        self.assertIn(".rag-stepper", css)
+        self.assertIn("mark.rag-hl", css)
+        self.assertIn(".rag-fc-grid", css)
+        self.assertIn(".rag-fc-toggle:checked + .rag-fc-inner", css)
+        self.assertIn("rotateY(180deg)", css)
         self.assertNotIn("\n\n", css)
 
 
