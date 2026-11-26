@@ -660,7 +660,7 @@ def render_system_card_html(cfg):
         f'</div>'
         f'<div class="rag-sys-sub rag-mono">{rerank_sub}</div>'
         f'<div class="rag-sys-grid">'
-        f'<div class="rag-sys-row"><span>Stage-1</span><span class="rag-mono">0.3·BM25 + 0.7·FAISS · N={retrieve_n}</span></div>'
+        f'<div class="rag-sys-row"><span>Stage-1</span><span class="rag-mono">0.3·BM25 + 0.7·FAISS ({retrieve_n})</span></div>'
         f'<div class="rag-sys-row"><span>Stage-2</span><span class="rag-mono">Top-{top_k}</span></div>'
         f'<div class="rag-sys-row"><span>LLM</span><span class="rag-mono">Groq</span></div>'
         f'<div class="rag-sys-row"><span>Embed</span><span class="rag-mono">{embed_dim}d · {embed_short}</span></div>'
@@ -1239,8 +1239,10 @@ a:hover { color:var(--primary-end); }
 [data-testid="stSidebar"] [class*="st-key-clear_all"] button:hover {
   color:var(--danger); background:rgba(185,28,28,0.06); border-color:transparent; }
 
+[data-testid="stSidebar"] [class*="st-key-new_conv"] {
+  margin-top:8px !important; }
 [data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.rag-brand) {
-  margin-bottom:6px !important; }
+  margin-bottom:8px !important; }
 .rag-brand { background:#FFFFFF; border:1px solid var(--border); border-radius:12px;
   padding:9px 11px; box-shadow:0 1px 3px rgba(15,23,42,0.04); margin-bottom:2px; }
 .rag-brand-top { display:flex; align-items:center; gap:9px; }
@@ -1714,6 +1716,12 @@ a.rag-source-pill:hover { border-color:var(--info); background:#CCFBF1; color:va
   transform:translate3d(2px,0,0); }
 [class*="st-key-fup_"] [data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"] {
   color:var(--info); }
+[class*="st-key-quiz_preset_"] [data-testid="stBaseButton-secondary"] {
+  font-size:0.78rem; padding:0.35rem 0.5rem; min-height:2.2rem; height:auto !important;
+  white-space:normal !important; line-height:1.25; }
+[class*="st-key-quiz_preset_"] [data-testid="stBaseButton-secondary"] [data-testid="stMarkdownContainer"] p {
+  white-space:normal !important; overflow:visible !important; text-overflow:clip !important;
+  font-size:0.78rem; margin:0; text-align:center; }
 
 .rag-quiz-score { background:#FFFFFF; border:1px solid var(--border); border-radius:14px;
   padding:14px 18px; margin-bottom:14px; box-shadow:0 2px 8px rgba(15,23,42,0.04); }
