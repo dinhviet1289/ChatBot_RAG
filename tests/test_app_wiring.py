@@ -12,11 +12,13 @@ class TestAppWiring(unittest.TestCase):
             "app.py",
             "rag_engine_web.py",
             "ui/catalog.py",
+            "ui/quiz.py",
             "ui/theme.py",
             "ui/state.py",
             "views/conversation.py",
             "views/documents.py",
             "views/inspector.py",
+            "views/quiz.py",
         ]
         for rel in expected_files:
             p = ROOT / rel
@@ -52,6 +54,9 @@ class TestAppWiring(unittest.TestCase):
         src = (ROOT / "app.py").read_text(encoding="utf-8")
         self.assertIn('("conversation"', src)
         self.assertIn('"Trợ lý hỏi đáp"', src)
+        self.assertIn('("quiz"', src)
+        self.assertIn('"Trắc nghiệm ôn tập"', src)
+        self.assertIn("render_quiz_view", src)
         self.assertIn('"Kho tài liệu"', src)
         self.assertIn('"Kiểm tra truy hồi"', src)
         self.assertIn("has_history", src)
@@ -65,6 +70,7 @@ class TestAppWiring(unittest.TestCase):
         conv_src = (ROOT / "views" / "conversation.py").read_text(encoding="utf-8")
         self.assertIn("render_source_pills_html", conv_src)
         self.assertIn("open_in_inspector", conv_src)
+        self.assertIn("build_followup_questions", conv_src)
 
     def test_sidebar_navigation_never_double_reruns(self):
         # Click button đã tự rerun một lần; gọi thêm st.rerun() trong handler là

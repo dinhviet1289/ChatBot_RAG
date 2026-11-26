@@ -139,6 +139,37 @@ CÂU HỎI:
 TRẢ LỜI:
 """
 
+QUIZ_TEMPLATE = r"""
+Bạn là giảng viên môn Trí tuệ nhân tạo (ELC3008).
+
+NHIỆM VỤ:
+Tạo đúng {num_questions} câu hỏi trắc nghiệm khách quan (4 lựa chọn A, B, C, D, chỉ 1 đáp án đúng)
+dựa HOÀN TOÀN vào các đoạn NGỮ CẢNH dưới đây.
+
+CHỦ ĐỀ TRỌNG TÂM:
+{topic_hint}
+
+QUY TẮC:
+1. Mỗi câu hỏi phải kiểm tra kiến thức thực sự trong NGỮ CẢNH (không tự bịa kiến thức ngoài tài liệu).
+2. Trình bày câu hỏi và 4 phương án A, B, C, D rõ ràng bằng tiếng Việt (giữ thuật ngữ chuyên ngành tiếng Anh nếu cần).
+3. 4 phương án nhiễu phải hợp lý, độ dài tương đương, chỉ có đúng 1 đáp án đúng.
+4. Phần "explanation" giải thích ngắn gọn vì sao đáp án đó đúng.
+5. "source_idx" là số nguyên (1, 2, ...) khớp với nhãn [Nguồn X | ...] chứa thông tin của câu hỏi.
+6. CHỈ trả về JSON hợp lệ dạng mảng (không kèm markdown fence hay chữ thừa ngoài JSON):
+[
+  {{
+    "question": "Nội dung câu hỏi?",
+    "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
+    "answer": "A",
+    "explanation": "Giải thích ngắn gọn dựa trên tài liệu.",
+    "source_idx": 1
+  }}
+]
+
+NGỮ CẢNH:
+{context}
+"""
+
 
 def describe_llm_error(exc):
     """Thay traceback khi gọi mô hình trả lời thất bại (hết hạn mức, mạng, lỗi API).
@@ -204,6 +235,25 @@ def stream_answer(make_chain, pairs, inputs, report=None):
             return
         except Exception as exc:
             if started or not _model_unusable(exc):
+                raise
+            last_error = exc
+    if last_error is not None:
+        raise last_error
+
+
+def invoke_text(make_chain, pairs, inputs, report=None):
+    """Gọi chain đồng bộ (non-stream) với fallback qua nhiều model/key khi cạn hạn mức."""
+    if not pairs:
+        raise ValueError("Thiếu GROQ_API_KEY trong Secrets.")
+    last_error = None
+    for index, (model, key) in enumerate(pairs):
+        try:
+            out = make_chain(model, key).invoke(inputs)
+            if report:
+                report(model, key, index > 0)
+            return out
+        except Exception as exc:
+            if not _model_unusable(exc):
                 raise
             last_error = exc
     if last_error is not None:
@@ -351,9 +401,13 @@ def get_rag_bundle():
         reranker = CrossEncoder(RERANK_MODEL, max_length=1024)
 
     prompt_template = ChatPromptTemplate.from_template(TEMPLATE)
+    quiz_prompt_template = ChatPromptTemplate.from_template(QUIZ_TEMPLATE)
 
     def make_answer_chain(model, key):
         return prompt_template | ChatGroq(model=model, api_key=key, temperature=0) | StrOutputParser()
+
+    def make_quiz_chain(model, key):
+        return quiz_prompt_template | ChatGroq(model=model, api_key=key, temperature=0.3) | StrOutputParser()
 
     doc_summary = summarize_docstore(db.docstore._dict)
     config = {
@@ -373,6 +427,7 @@ def get_rag_bundle():
         "ensemble": ensemble,
         "reranker": reranker,
         "make_answer_chain": make_answer_chain,
+        "make_quiz_chain": make_quiz_chain,
         "groq_keys": list(GROQ_KEYS),
         "doc_summary": doc_summary,
         "config": config,

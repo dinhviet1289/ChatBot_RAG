@@ -515,6 +515,15 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertNotIn("Doc 5", out)
         self.assertIn("+1 nguồn", out)
 
+    def test_global_css_styles_custom_avatars_followups_quiz_and_distinct_sidebar(self):
+        css = _global_css()
+        self.assertIn('[data-testid^="stChatMessageAvatar"]', css)
+        self.assertIn(".rag-followup-label", css)
+        self.assertIn('[class*="st-key-fup_"]', css)
+        self.assertIn(".rag-quiz-score", css)
+        self.assertIn('[class*="st-key-conv_"] [data-testid="stBaseButton-primary"]', css)
+        self.assertNotIn("\n\n", css)
+
 
 if __name__ == "__main__":
     unittest.main()

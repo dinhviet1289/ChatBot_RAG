@@ -13,6 +13,7 @@ from ui.theme import inject_global_css, render_system_card_html
 from views.conversation import render_conversation_view
 from views.documents import render_documents_view
 from views.inspector import render_inspector_view
+from views.quiz import render_quiz_view
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ except Exception as e:
 state = st.session_state
 NAV = [
     ("conversation", ":material/forum:", "Trợ lý hỏi đáp"),
+    ("quiz", ":material/quiz:", "Trắc nghiệm ôn tập"),
     ("documents", ":material/folder_open:", "Kho tài liệu"),
     ("inspector", ":material/science:", "Kiểm tra truy hồi"),
 ]
@@ -121,6 +123,8 @@ with st.sidebar:
 page = state["active_page"]
 if page == "conversation":
     render_conversation_view(bundle)
+elif page == "quiz":
+    render_quiz_view(bundle)
 elif page == "inspector":
     render_inspector_view(bundle)
 else:

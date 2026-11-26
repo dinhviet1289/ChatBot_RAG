@@ -25,6 +25,7 @@ from ui.state import (
     SUGGESTED_CARDS,
     append_assistant_turn,
     append_user_turn,
+    build_followup_questions,
     get_active_conversation,
     last_user_question,
     open_in_inspector,
@@ -46,6 +47,10 @@ def _on_inspect_last():
     q = last_user_question(st.session_state)
     if q:
         open_in_inspector(st.session_state, q)
+
+
+def _on_followup(question):
+    st.session_state["pending_prompt"] = question
 
 
 def _clear_stage_on_first_chunk(stream, stage_slot):
@@ -177,6 +182,9 @@ def render_conversation_view(bundle):
 
     regen_slot = st.empty()
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
+        last_msg = conv["messages"][-1]
+        last_q = last_user_question(state)
+        history_qs = [m.get("content") for m in conv["messages"] if m.get("role") == "user"]
         with regen_slot.container():
             act1, act2 = st.columns([1, 1.15])
             if act1.button(":material/refresh: Tạo lại câu trả lời", key="regen", width="stretch"):
@@ -185,13 +193,33 @@ def render_conversation_view(bundle):
                     state["pending_prompt"] = q
                     # Lịch sử đã render cả lượt cũ; phải rerun để vẽ lại sau khi pop.
                     st.rerun()
-            if last_user_question(state):
+            if last_q:
                 act2.button(
                     ":material/science: Mổ xẻ truy hồi câu này",
                     key="inspect_last",
                     width="stretch",
                     on_click=_on_inspect_last,
                 )
+            if not last_msg.get("is_error"):
+                followups = build_followup_questions(
+                    last_q or "",
+                    last_msg.get("sources"),
+                    history_qs,
+                    last_msg.get("content") or "",
+                )
+                if followups:
+                    st.markdown(
+                        '<div class="rag-followup-label rag-mono">GỢI Ý HỎI TIẾP</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for idx, fq in enumerate(followups):
+                        st.button(
+                            f":material/subdirectory_arrow_right: {fq}",
+                            key=f"fup_{conv['id']}_{len(conv['messages'])}_{idx}",
+                            width="stretch",
+                            on_click=_on_followup,
+                            args=(fq,),
+                        )
 
     empty_slot = st.empty()
     if not conv["messages"] and not state.get("pending_prompt"):
