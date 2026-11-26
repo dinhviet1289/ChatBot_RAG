@@ -487,6 +487,26 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertTrue(style_body.endswith("</style>"))
         self.assertNotIn("\n\n", style_body)
 
+    def test_normalize_latex_for_streamlit_converts_html_br_and_preserves_tables_and_code(self):
+        from ui.theme import normalize_latex_for_streamlit
+
+        sample = (
+            "$$\\forall i, j, k$$\n<br>\n$$\\forall i, j, k$$\n<br> 2. <br>\n"
+            "Dòng 1<br>Dòng 2<br />Dòng 3\n"
+            "| Cột A<br>Dòng phụ | Cột B |\n"
+            "Giữ inline `<br>` và:\n```html\n<br>\n```"
+        )
+        out = normalize_latex_for_streamlit(sample)
+        self.assertIn("Dòng 1  \nDòng 2  \nDòng 3", out)
+        self.assertIn("| Cột A; Dòng phụ | Cột B |", out)
+        self.assertIn("`<br>`", out)
+        self.assertIn("```html\n<br>\n```", out)
+        stripped = out.replace("`<br>`", "").replace("```html\n<br>\n```", "")
+        self.assertNotIn("<br", stripped.lower())
+        self.assertIn("2.", stripped)
+        self.assertNotIn("<br", clean_snippet("Ý 1<br>Ý 2").lower())
+        self.assertNotIn("&lt;br", clean_snippet("Ý 1<br>Ý 2").lower())
+
     def test_render_source_pills_handles_links_overflow_and_unsafe_urls(self):
         from ui.theme import render_source_pills_html
 

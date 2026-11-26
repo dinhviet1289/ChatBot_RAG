@@ -379,6 +379,7 @@ def latex_to_plain_text(text):
 
     s = _FENCED_CODE_RE.sub(_handle_fenced, s)
     s = _INLINE_CODE_RE.sub(_handle_inline_code, s)
+    s = _HTML_BR_RE.sub("\n", s)
     s = _DISPLAY_DOLLAR_RE.sub(lambda m: _convert_math_expr(m.group(1), inline=False), s)
     s = _DISPLAY_BRACKET_RE.sub(lambda m: _convert_math_expr(m.group(1), inline=False), s)
     s = _INLINE_PAREN_RE.sub(lambda m: _convert_math_expr(m.group(1), inline=True), s)
@@ -400,6 +401,31 @@ def latex_to_plain_text(text):
 
 
 _INLINE_LATEX_SPACED_RE = re.compile(r"(?<!\\)\$[ \t]*([^$\n]*\\[^$\n]*?)[ \t]*\$(?!\d)")
+_HTML_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+_HTML_BR_LEAD_RE = re.compile(r"^[ \t]*(?:<br\s*/?>[ \t]*)+", re.IGNORECASE)
+_HTML_BR_TRAIL_RE = re.compile(r"(?:[ \t]*<br\s*/?>)+[ \t]*$", re.IGNORECASE)
+_HTML_BR_MID_RE = re.compile(r"[ \t]*(?:<br\s*/?>[ \t]*)+", re.IGNORECASE)
+
+
+def _replace_html_br(text):
+    """Replace HTML <br> tags with Markdown line breaks (or '; ' inside table rows)."""
+    if not _HTML_BR_RE.search(text):
+        return text
+    out_lines = []
+    for line in text.split("\n"):
+        if not _HTML_BR_RE.search(line):
+            out_lines.append(line)
+            continue
+        stripped = line.strip()
+        if stripped.startswith("|") and stripped.count("|") >= 2:
+            cleaned = re.sub(r"\s*<br\s*/?>\s*", "; ", line, flags=re.IGNORECASE)
+            out_lines.append(cleaned)
+        else:
+            cleaned = _HTML_BR_LEAD_RE.sub("", line)
+            cleaned = _HTML_BR_TRAIL_RE.sub("", cleaned)
+            cleaned = _HTML_BR_MID_RE.sub("  \n", cleaned)
+            out_lines.append(cleaned)
+    return "\n".join(out_lines)
 
 
 def normalize_latex_for_streamlit(text):
@@ -432,6 +458,7 @@ def normalize_latex_for_streamlit(text):
     s = _DISPLAY_DOLLAR_RE.sub(lambda m: f"\n\n$$\n{m.group(1).strip()}\n$$\n\n", s)
     s = _INLINE_PAREN_RE.sub(lambda m: f"${m.group(1).strip()}$", s)
     s = _INLINE_LATEX_SPACED_RE.sub(lambda m: f"${m.group(1).strip()}$", s)
+    s = _replace_html_br(s)
     s = re.sub(r"\n{3,}", "\n\n", s)
     if not raw.startswith("\n"):
         s = s.lstrip("\n")

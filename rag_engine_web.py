@@ -124,7 +124,7 @@ QUY TẮC:
      \pi_\theta(s, a) = \frac{{\exp(\beta \hat{{Q}}_\theta(s, a))}}{{\sum_{{a'}} \exp(\beta \hat{{Q}}_\theta(s, a'))}}
      $$
    - Biến hoặc biểu thức ngắn trong câu: đặt trong cặp $...$ KHÔNG có khoảng trắng sát dấu $ (vd: $\alpha$, $f(n) = g(n) + h(n)$, $O(b^d)$).
-   - KHÔNG dùng \(...\), \[...\], KHÔNG đặt công thức trong code block, và KHÔNG viết công thức phức tạp kiểu plain text rời rạc (như π_θ / Σ_a').
+   - KHÔNG dùng \(...\), \[...\], KHÔNG đặt công thức trong code block, KHÔNG viết công thức phức tạp kiểu plain text rời rạc (như π_θ / Σ_a'), và KHÔNG dùng thẻ HTML như <br> để xuống dòng (chỉ dùng xuống dòng Markdown chuẩn).
 
 NGỮ CẢNH:
 {context}
