@@ -2234,25 +2234,51 @@ html, body, [data-testid="stApp"], [data-testid="stAppViewContainer"], [data-tes
 [data-testid="stTextArea"] [data-baseweb="textarea"],
 [data-testid="stSelectbox"] [data-baseweb="select"],
 [data-testid="stSelectbox"] [data-baseweb="select"] > div,
-[data-testid="stSelectbox"] [data-baseweb="select"] > div > div {
+[data-testid="stSelectbox"] [data-baseweb="select"] > div > div,
+[data-testid="stSelectbox"] .react-aria-ComboBox,
+[data-testid="stSelectbox"] .react-aria-ComboBox > div,
+[data-testid="stSelectbox"] [role="group"],
+[data-testid="stSelectbox"] input[role="combobox"] {
   background-color:#0F172A !important; color:var(--text) !important;
-  border-color:var(--border) !important; }
+  border-color:var(--border) !important; caret-color:var(--text) !important; }
 [data-testid="stTextInput"] input::placeholder,
-[data-testid="stTextArea"] textarea::placeholder {
+[data-testid="stTextArea"] textarea::placeholder,
+[data-testid="stSelectbox"] input[role="combobox"]::placeholder {
   color:var(--muted) !important; opacity:0.85 !important; }
+[data-testid="stSelectbox"] [role="group"]:focus-within {
+  border-color:var(--primary) !important;
+  box-shadow:0 0 0 3px rgba(79,117,255,0.22) !important; }
 [data-testid="stSelectbox"] [data-baseweb="select"] span,
 [data-testid="stSelectbox"] [data-baseweb="select"] input,
 [data-testid="stSelectbox"] [data-baseweb="select"] div {
   color:var(--text) !important; }
-[data-testid="stSelectbox"] [data-baseweb="select"] svg { fill:var(--muted) !important; color:var(--muted) !important; }
+[data-testid="stSelectbox"] button[aria-haspopup="listbox"],
+[data-testid="stSelectbox"] button[aria-label="Open"],
+[data-testid="stSelectbox"] [role="group"] button {
+  background-color:#0F172A !important; color:var(--muted) !important;
+  border-color:var(--border) !important; }
+[data-testid="stSelectbox"] [data-baseweb="select"] svg,
+[data-testid="stSelectbox"] [role="group"] svg {
+  fill:var(--muted) !important; color:var(--muted) !important; }
 [data-baseweb="popover"], [data-baseweb="popover"] > div,
-[data-baseweb="menu"], ul[role="listbox"] {
+[data-baseweb="menu"], ul[role="listbox"],
+[data-testid="stSelectboxVirtualDropdown"],
+[data-testid="stSelectboxVirtualDropdown"] [role="listbox"] {
   background-color:#162033 !important; color:var(--text) !important;
-  border:1px solid var(--border) !important; }
-li[role="option"], li[role="option"] > div, li[role="option"] span {
+  border:1px solid var(--border) !important;
+  box-shadow:0 12px 32px rgba(0,0,0,0.5) !important; }
+li[role="option"], li[role="option"] > div, li[role="option"] span,
+[data-testid="stSelectboxVirtualDropdown"] [role="option"],
+[data-testid="stSelectboxVirtualDropdown"] [role="option"] > div {
   background-color:transparent !important; color:var(--text) !important; }
-li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+li[role="option"]:hover, li[role="option"][aria-selected="true"],
+[data-testid="stSelectboxVirtualDropdown"] [role="option"]:hover,
+[data-testid="stSelectboxVirtualDropdown"] [role="option"][aria-selected="true"],
+[data-testid="stSelectboxVirtualDropdown"] [role="option"][data-focused="true"] {
   background-color:#1E293B !important; color:var(--link) !important; }
+[data-testid="stSelectboxVirtualDropdown"] [role="option"][aria-selected="true"] > div,
+[data-testid="stSelectboxVirtualDropdown"] [role="option"][data-focused="true"] > div {
+  color:var(--link) !important; font-weight:600; }
 [data-testid="stChatInput"], [data-testid="stChatInput"] > div,
 [data-testid="stChatInput"] [data-baseweb="textarea"],
 [data-testid="stChatInput"] [data-baseweb="base-input"] {

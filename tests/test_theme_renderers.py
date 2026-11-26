@@ -630,6 +630,8 @@ class TestThemeRenderers(unittest.TestCase):
         self.assertIn(DARK_PALETTE["card"], dark_css)
         self.assertIn(".rag-citation {", dark_css)
         self.assertIn("st-key-theme_toggle", dark_css)
+        self.assertIn("stSelectboxVirtualDropdown", dark_css)
+        self.assertIn('role="combobox"', dark_css)
         self.assertNotIn("\n\n", dark_css)
 
         def rel_lum(hex_c):
